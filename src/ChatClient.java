@@ -7,26 +7,31 @@ public class ChatClient {
         int port = args.length > 1 ? Integer.parseInt(args[1]) : 4999;
 
         try (Socket socket = new Socket(host, port)) {
-            System.out.println("Connected!");
+            BufferedReader keyboard = new BufferedReader(new InputStreamReader(System.in));
 
+            System.out.print("Enter your name: ");
+            String name = keyboard.readLine();
+            System.out.println("Connected! Type to chat.");
+
+            DataOutputStream dos = new DataOutputStream(socket.getOutputStream());
+            DataInputStream dis = new DataInputStream(socket.getInputStream());
+
+            // reader thread
             Thread reader = new Thread(() -> {
                 try {
-                    DataInputStream dis = new DataInputStream(socket.getInputStream());
                     while (true) {
                         String msg = dis.readUTF();
-                        System.out.println("Friend: " + msg);
-                        if (msg.equals("bye")) { System.exit(0); }
+                        System.out.println(msg);
                     }
                 } catch (IOException e) { System.out.println("Disconnected."); }
             });
 
+            // writer thread
             Thread writer = new Thread(() -> {
                 try {
-                    DataOutputStream dos = new DataOutputStream(socket.getOutputStream());
-                    BufferedReader keyboard = new BufferedReader(new InputStreamReader(System.in));
                     while (true) {
                         String msg = keyboard.readLine();
-                        dos.writeUTF(msg);
+                        dos.writeUTF("[" + name + "]: " + msg);
                         if (msg.equals("bye")) { System.exit(0); }
                     }
                 } catch (IOException e) {}

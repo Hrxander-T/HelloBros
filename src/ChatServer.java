@@ -1,0 +1,40 @@
+import java.io.*;
+import java.net.*;
+
+public class ChatServer {
+    public static void main(String[] args) throws IOException {
+        try (ServerSocket ss = new ServerSocket(4999)) {
+            System.out.println("Waiting for friend...");
+            Socket socket = ss.accept();
+            System.out.println("Friend connected!");
+
+            // Thread 1: constantly read incoming messages
+            Thread reader = new Thread(() -> {
+                try {
+                    DataInputStream dis = new DataInputStream(socket.getInputStream());
+                    while (true) {
+                        String msg = dis.readUTF();
+                        System.out.println("Friend: " + msg);
+                        if (msg.equals("bye")) { System.exit(0); }
+                    }
+                } catch (IOException e) { System.out.println("Friend disconnected."); }
+            });
+
+            // Thread 2: constantly send your messages
+            Thread writer = new Thread(() -> {
+                try {
+                    DataOutputStream dos = new DataOutputStream(socket.getOutputStream());
+                    BufferedReader keyboard = new BufferedReader(new InputStreamReader(System.in));
+                    while (true) {
+                        String msg = keyboard.readLine();
+                        dos.writeUTF(msg);
+                        if (msg.equals("bye")) { System.exit(0); }
+                    }
+                } catch (IOException e) {}
+            });
+
+            reader.start();
+            writer.start();
+        }
+    }
+}

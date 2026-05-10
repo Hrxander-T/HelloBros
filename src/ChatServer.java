@@ -2,13 +2,12 @@ import java.io.*;
 import java.net.*;
 
 public class ChatServer {
-    public static void main(String[] args) throws IOException {
+    public static void main(String[] args) throws Exception {
         try (ServerSocket ss = new ServerSocket(4999)) {
             System.out.println("Waiting for friend...");
             Socket socket = ss.accept();
             System.out.println("Friend connected!");
 
-            // Thread 1: constantly read incoming messages
             Thread reader = new Thread(() -> {
                 try {
                     DataInputStream dis = new DataInputStream(socket.getInputStream());
@@ -20,7 +19,6 @@ public class ChatServer {
                 } catch (IOException e) { System.out.println("Friend disconnected."); }
             });
 
-            // Thread 2: constantly send your messages
             Thread writer = new Thread(() -> {
                 try {
                     DataOutputStream dos = new DataOutputStream(socket.getOutputStream());
@@ -35,6 +33,8 @@ public class ChatServer {
 
             reader.start();
             writer.start();
+            reader.join(); // wait for threads
+            writer.join();
         }
     }
 }

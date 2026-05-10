@@ -2,9 +2,12 @@ import java.io.*;
 import java.net.*;
 
 public class ChatClient {
-    public static void main(String[] args) throws IOException {
-        try (Socket socket = new Socket("localhost", 4999)) {
-            System.out.println("Connected to server!");
+    public static void main(String[] args) throws Exception {
+        String host = args.length > 0 ? args[0] : "localhost";
+        int port = args.length > 1 ? Integer.parseInt(args[1]) : 4999;
+
+        try (Socket socket = new Socket(host, port)) {
+            System.out.println("Connected!");
 
             Thread reader = new Thread(() -> {
                 try {
@@ -31,6 +34,8 @@ public class ChatClient {
 
             reader.start();
             writer.start();
+            reader.join();
+            writer.join();
         }
     }
 }

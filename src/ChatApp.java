@@ -60,22 +60,24 @@ public class ChatApp {
             // Connects to an existing chat room
             @Override
             protected void onJoin(String name, String address, int port) {
-                // Array to hold client reference (needed for final variable in anonymous class)
                 Client[] clientRef = new Client[1];
 
-                // Create ChatScreen and override onSend to use Client
                 ChatScreen chat = new ChatScreen(frame, name) {
-
                     @Override
                     protected void onSend(String msg) {
-                        // Send message through the connected client
                         if (clientRef[0] != null)
                             clientRef[0].send(msg);
+                    }
+
+                    @Override
+                    protected void onReconnect() {
+                        Client client = new Client(address, port, name, this);
+                        clientRef[0] = client;
+                        client.start();
                     }
                 };
                 chat.show();
 
-                // Create and connect the client
                 Client client = new Client(address, port, name, chat);
                 clientRef[0] = client;
                 client.start();

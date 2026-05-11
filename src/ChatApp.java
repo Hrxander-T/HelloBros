@@ -54,6 +54,20 @@ public class ChatApp {
                 // Create and start the server on the chosen port
                 Server server = new Server(port, chat);
                 server.start();
+
+                TunnelProvider tunnel = TunnelFactory.create(TunnelFactory.Provider.BORE);
+                tunnel.start(port, new TunnelProvider.TunnelListener() {
+                    @Override
+                    public void onReady(String address) {
+                        chat.showTunnelInfo(address);
+                        chat.appendMessage("-- Tunnel ready: " + address + " --");
+                    }
+
+                    @Override
+                    public void onError(String error) {
+                        chat.appendMessage("-- Tunnel error: " + error + " --");
+                    }
+                });
             }
 
             // Called when user clicks the "Join" button

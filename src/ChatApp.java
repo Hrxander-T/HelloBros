@@ -11,7 +11,7 @@ public class ChatApp {
 
     public static void main(String[] args) {
         // Create the main application window
-        frame = new JFrame("Java Chat App");
+        frame = new JFrame("Hello Bros");
         frame.setSize(400, 500);
 
         // Exit the application when the window is closed

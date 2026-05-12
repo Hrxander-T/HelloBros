@@ -33,7 +33,7 @@ public class StartupScreen {
         panel.setBorder(BorderFactory.createEmptyBorder(80, 60, 80, 60));
 
         // Title at the top
-        JLabel title = new JLabel("Java Chat App");
+        JLabel title = new JLabel("Hello Bros");
         title.setFont(new Font("Arial", Font.BOLD, 22));
         title.setAlignmentX(Component.CENTER_ALIGNMENT);
 

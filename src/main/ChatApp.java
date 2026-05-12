@@ -2,6 +2,7 @@ package main;
 
 import javax.swing.JFrame;
 import ui.ChatScreen;
+import ui.LobbyScreen;
 import ui.Navigator;
 import ui.StartupScreen;
 
@@ -31,9 +32,11 @@ public class ChatApp {
 
         StartupScreen startup = new StartupScreen(navigator);
         ChatScreen chat = new ChatScreen(navigator);
+        LobbyScreen lobby = new LobbyScreen(navigator);
 
         navigator.register("startup", startup);
         navigator.register("chat", chat);
+        navigator.register("lobby", lobby);
 
         navigator.goTo("startup");
     }

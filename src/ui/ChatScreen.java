@@ -33,13 +33,24 @@ public class ChatScreen implements Screen {
 
     @Override
     public void onShow(Object args) {
-        ChatArgs a = (ChatArgs) args;
-        buildPanel(a.name);
 
-        if (a.isHost) {
-            startServer(a.name, a.port);
-        } else {
-            startClient(a.name, a.address, a.port);
+        switch (args) {
+            case ChatArgs a -> {
+                buildPanel(a.name);
+                if (a.isHost)
+                    startServer(a.name, a.port);
+                else
+                    startClient(a.name, a.address, a.port);
+            }
+            case LobbyArgs a -> {
+                buildPanel(a.name);
+                if (a.isHost)
+                    startServer(a.name, a.port);
+                else
+                    startClient(a.name, a.address, a.port);
+            }
+            default -> {
+            }
         }
     }
 
@@ -105,7 +116,7 @@ public class ChatScreen implements Screen {
         backBtn.setFont(new Font("Arial", Font.PLAIN, 11));
         backBtn.addActionListener(e -> {
             onHide();
-            navigator.goTo("startup");
+            navigator.goTo("lobby");
         });
 
         JPanel headerPanel = new JPanel(new BorderLayout());

@@ -1,4 +1,5 @@
 import java.io.*;
+import java.net.URISyntaxException;
 
 public class BoreTunnel implements TunnelProvider {
 
@@ -8,14 +9,47 @@ public class BoreTunnel implements TunnelProvider {
     public void start(int port, TunnelListener listener) {
         Thread t = new Thread(() -> {
             try {
-                String borePath = new File("./bore").exists() ? "./bore" : "bore";
+                // ----------Getting bore path ----------------
+                // detect OS
+                boolean isWindows = System.getProperty("os.name").toLowerCase().contains("win");
+                String boreName = isWindows ? "bore.exe" : "bore";
+
+                // check all possible locations in order
+                // String[] locations = {
+                // System.getProperty("java.home") + "/../" + boreName, // next to JAR
+                // (packaged)
+                // "C:\\Program Files\\HelloBros\\" + boreName, // Windows install
+                // "/opt/hellobros/" + boreName, // Linux deb
+                // "/opt/hellobros/bin/" + boreName, // fallback
+                // "./" + boreName // development
+                // };
+                // get the directory where the app is installed
+                String appDir = new File(ChatApp.class.getProtectionDomain()
+                        .getCodeSource()
+                        .getLocation()
+                        .toURI())
+                        .getParentFile()
+                        .getParent(); // goes up from app/ to HelloBros/
+
+                String[] locations = {
+                        appDir + File.separator + boreName, // installed app (all platforms)
+                        "./" + boreName // development
+                };
+                String borePath = "./bore"; // fallback
+                for (String loc : locations) {
+                    if (new File(loc).exists()) {
+                        borePath = loc;
+                        break;
+                    }
+                }
+                // --------------- bore processing ------------------------
                 ProcessBuilder pb = new ProcessBuilder(
-                    borePath, "local", String.valueOf(port), "--to", "bore.pub");
+                        borePath, "local", String.valueOf(port), "--to", "bore.pub");
                 pb.redirectErrorStream(true);
                 process = pb.start();
 
                 BufferedReader reader = new BufferedReader(
-                    new InputStreamReader(process.getInputStream()));
+                        new InputStreamReader(process.getInputStream()));
 
                 String line;
                 while ((line = reader.readLine()) != null) {
@@ -28,6 +62,9 @@ public class BoreTunnel implements TunnelProvider {
 
             } catch (IOException e) {
                 listener.onError("Bore error: " + e.getMessage());
+            } catch (URISyntaxException e) {
+                listener.onError("AppDir error " + e.getMessage());
+
             }
         });
         t.setDaemon(true);
@@ -36,6 +73,7 @@ public class BoreTunnel implements TunnelProvider {
 
     @Override
     public void stop() {
-        if (process != null) process.destroy();
+        if (process != null)
+            process.destroy();
     }
 }

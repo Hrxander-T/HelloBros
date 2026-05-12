@@ -1,0 +1,159 @@
+name: Build HelloBros
+
+permissions:
+  contents: write
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: "21"
+          distribution: "temurin"
+
+      - name: Install WiX Toolset
+        run: choco install wixtoolset -y
+
+      - name: Create output directory
+        run: mkdir -p out
+
+      - name: Compile Java sources
+        run: javac -d out src/*.java
+
+      - name: Download bore for Windows
+        run: |
+          curl -L https://github.com/ekzhang/bore/releases/download/v0.5.0/bore-v0.5.0-x86_64-pc-windows-msvc.zip -o bore.zip
+          unzip bore.zip
+          move bore.exe out/
+
+      - name: Create fat JAR
+        run: |
+          echo "Main-Class: ChatApp" > manifest.txt
+          jar cfm HelloBros.jar manifest.txt -C out .
+
+      - name: Strip v prefix from version
+        id: version
+        run: |
+          $v = "${{ github.ref_name }}" -replace '^v', ''
+          echo "VERSION=$v" >> $env:GITHUB_OUTPUT
+
+      - name: Package as Windows EXE
+        run: |
+          jpackage `
+            --input . `
+            --name HelloBros `
+            --main-jar HelloBros.jar `
+            --main-class ChatApp `
+            --type exe `
+            --app-version ${{ steps.version.outputs.VERSION }} `
+            --description "HelloBros Chat App" `
+            --icon assets/icon.ico `
+            --win-shortcut `
+            --win-menu `
+            --win-menu-group "HelloBros" `
+            --app-content out/bore.exe `
+            --dest installer
+
+      - name: Upload EXE as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: HelloBros-Windows
+          path: installer/*.exe
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: installer/*.exe
+          name: HelloBros ${{ github.ref_name }}
+          body: |
+            ## HelloBros ${{ github.ref_name }}
+
+            ### Installation
+            1. Download the installer for your platform
+            2. Run it
+            3. Launch HelloBros from desktop
+
+            ### Requirements
+            - No Java needed — bundled inside
+            - bore bundled — no extra setup
+
+  build-linux:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: "21"
+          distribution: "temurin"
+
+      - name: Install packaging dependencies
+        run: sudo apt-get install -y fakeroot binutils
+
+      - name: Create output directory
+        run: mkdir -p out
+
+      - name: Compile Java sources
+        run: javac -d out src/*.java
+
+      - name: Download bore for Linux
+        run: |
+          curl -L https://github.com/ekzhang/bore/releases/download/v0.5.0/bore-v0.5.0-x86_64-unknown-linux-musl.tar.gz | tar xz
+          chmod +x bore
+          mv bore out/
+
+      - name: Create fat JAR
+        run: |
+          echo "Main-Class: ChatApp" > manifest.txt
+          jar cfm HelloBros.jar manifest.txt -C out .
+
+      - name: Strip v prefix from version
+        id: version
+        run: |
+          VERSION="${{ github.ref_name }}"
+          VERSION="${VERSION#v}"
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Package as Linux DEB
+        run: |
+          jpackage \
+            --input . \
+            --name HelloBros \
+            --main-jar HelloBros.jar \
+            --main-class ChatApp \
+            --type deb \
+            --app-version ${{ steps.version.outputs.VERSION }} \
+            --description "HelloBros Chat App" \
+            --icon assets/icon.png \
+            --linux-shortcut \
+            --linux-app-category Network\
+            --app-content out/bore \
+            --dest installer
+
+      - name: Upload DEB as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: HelloBros-Linux
+          path: installer/*.deb
+
+      - name: Add Linux DEB to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: installer/*.deb

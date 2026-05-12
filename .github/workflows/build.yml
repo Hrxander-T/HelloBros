@@ -24,7 +24,10 @@ jobs:
           distribution: "temurin"
 
       - name: Install WiX Toolset 3
-        run: choco install wixtoolset --version 3.11.2 -y
+        run: |
+          curl -L https://github.com/wixtoolset/wix3/releases/download/wix3112rtm/wix311.exe -o wix311.exe
+          Start-Process wix311.exe -ArgumentList '/quiet' -Wait
+          echo "C:\Program Files (x86)\WiX Toolset v3.11\bin" >> $env:GITHUB_PATH
 
       - name: Create output directory
         run: New-Item -ItemType Directory -Force -Path out
@@ -42,7 +45,7 @@ jobs:
 
       - name: Create fat JAR
         run: |
-          echo "Main-Class: ChatApp" > manifest.txt
+          echo "Main-Class: main.ChatApp" > manifest.txt
           jar cfm HelloBros.jar manifest.txt -C out .
 
       - name: Strip v prefix from version
@@ -57,7 +60,7 @@ jobs:
             --input . `
             --name HelloBros `
             --main-jar HelloBros.jar `
-            --main-class ChatApp `
+            --main-class main.ChatApp `
             --type exe `
             --app-version ${{ steps.version.outputs.VERSION }} `
             --description "HelloBros Chat App" `
@@ -104,7 +107,7 @@ jobs:
 
       - name: Create fat JAR
         run: |
-          echo "Main-Class: ChatApp" > manifest.txt
+          echo "Main-Class: main.ChatApp" > manifest.txt
           jar cfm HelloBros.jar manifest.txt -C out .
 
       - name: Strip v prefix from version
@@ -120,7 +123,7 @@ jobs:
             --input . \
             --name HelloBros \
             --main-jar HelloBros.jar \
-            --main-class ChatApp \
+            --main-class main.ChatApp \
             --type deb \
             --app-version ${{ steps.version.outputs.VERSION }} \
             --description "HelloBros Chat App" \

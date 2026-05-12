@@ -13,7 +13,7 @@ All notable changes to this project will be documented in this file.
 - Reorganized codebase into proper folder structure
 - Refactored Screen class to use Navigator
 
-## [1.0.0] - 2023-04-28
+## [1.0.0] - 2026-05-12
 
 ### Added
 - Initial release

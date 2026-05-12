@@ -1,4 +1,5 @@
 package network;
+
 import java.io.*;
 import java.net.*;
 
@@ -11,9 +12,9 @@ public class Client {
     private DataOutputStream dos;
 
     public Client(String host, int port, String name, MessageListener listener) {
-        this.host     = host;
-        this.port     = port;
-        this.name     = name;
+        this.host = host;
+        this.port = port;
+        this.name = name;
         this.listener = listener;
     }
 
@@ -29,10 +30,15 @@ public class Client {
 
                     while (true) {
                         String type = dis.readUTF();
-                        if (type.equals("MSG")) {
-                            listener.onMessage(dis.readUTF());
-                        } else if (type.equals("PING")) {
-                            dis.readUTF();
+                        switch (type) {
+                            case "MSG" -> listener.onMessage(dis.readUTF());
+                            case "PING" -> dis.readUTF();
+                            case "GAME" -> {
+                                String moveData = dis.readUTF();
+                                listener.onGameMove(moveData);
+                            }
+                            default -> {
+                            }
                         }
                     }
                 }
@@ -49,7 +55,8 @@ public class Client {
     }
 
     public void send(String msg) {
-        if (dos == null) return;
+        if (dos == null)
+            return;
         try {
             dos.writeUTF("MSG");
             dos.writeUTF("[" + name + "]: " + msg);
@@ -59,7 +66,8 @@ public class Client {
     }
 
     public void sendFile(File file) {
-        if (dos == null) return;
+        if (dos == null)
+            return;
         try {
             byte[] fileData;
             try (FileInputStream fis = new FileInputStream(file)) {
@@ -74,6 +82,17 @@ public class Client {
             listener.onMessage("File sent: " + file.getName());
         } catch (IOException e) {
             listener.onMessage("File send error: " + e.getMessage());
+        }
+    }
+
+    public void sendMove(int row, int col) {
+        if (dos == null)
+            return;
+        try {
+            dos.writeUTF("GAME");
+            dos.writeUTF(row + "," + col);
+        } catch (IOException e) {
+            listener.onMessage("Move send error: " + e.getMessage());
         }
     }
 }

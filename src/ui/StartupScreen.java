@@ -12,6 +12,7 @@ public class StartupScreen implements Screen {
         this.navigator = navigator;
         buildPanel();
     }
+
     private void buildPanel() {
         panel = new JPanel();
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
@@ -33,7 +34,7 @@ public class StartupScreen implements Screen {
 
         JLabel hostLabel = new JLabel("Connection Type:");
         hostLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
-        JComboBox<String> addressBox = new JComboBox<>(new String[]{"Local", "Remote"});
+        JComboBox<String> addressBox = new JComboBox<>(new String[] { "Local", "Remote" });
         addressBox.setMaximumSize(new Dimension(Integer.MAX_VALUE, 35));
         addressBox.setSelectedIndex(1);
 
@@ -63,19 +64,35 @@ public class StartupScreen implements Screen {
         hostBtn.addActionListener(e -> {
             String name = nameField.getText().trim();
             int port = Integer.parseInt(portField.getText().trim());
-            if (name.isEmpty()) { JOptionPane.showMessageDialog(null, "Enter your name."); return; }
-            navigator.goTo("chat", new ChatArgs(name, port, null, true));
+            if (name.isEmpty()) {
+                JOptionPane.showMessageDialog(null, "Enter your name.");
+                return;
+            }
+            navigator.goTo("lobby", new LobbyArgs(name, port, null, true));
         });
 
         joinBtn.addActionListener(e -> {
-            String name    = nameField.getText().trim();
-            int port       = Integer.parseInt(portField.getText().trim());
+            String name = nameField.getText().trim();
+            int port = Integer.parseInt(portField.getText().trim());
             String address = addressBox.getSelectedItem().equals("Local") ? "localhost" : "bore.pub";
-            if (name.isEmpty()) { JOptionPane.showMessageDialog(null, "Enter your name."); return; }
-            navigator.goTo("chat", new ChatArgs(name, port, address, false));
+            if (name.isEmpty()) {
+                JOptionPane.showMessageDialog(null, "Enter your name.");
+                return;
+            }
+            navigator.goTo("lobby", new LobbyArgs(name, port, address, false));
         });
     }
-    @Override public void onShow(Object args) {}
-    @Override public JPanel getPanel() { return panel; }
-    @Override public void onHide() {}
+
+    @Override
+    public void onShow(Object args) {
+    }
+
+    @Override
+    public JPanel getPanel() {
+        return panel;
+    }
+
+    @Override
+    public void onHide() {
+    }
 }

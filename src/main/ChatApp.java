@@ -1,9 +1,7 @@
 package main;
 
-import javax.swing.JFrame;
-import ui.ChatScreen;
-import ui.Navigator;
-import ui.StartupScreen;
+import javax.swing.*;
+import ui.*;
 
 /**
  * Entry point of the chat application.
@@ -11,32 +9,34 @@ import ui.StartupScreen;
  */
 public class ChatApp {
 
-    // Main window - shared across all screens so we can switch between them
-
+    // Main window - shared across all screens so we can switch between the
     public static void main(String[] args) {
         // Create the main application window
-        frame = new JFrame("Hello Bros");
-        frame.setSize(400, 500);
+         JFrame frame1 = new JFrame("Hello Bros");
+        frame1.setSize(400, 500);
 
         // Exit the application when the window is closed
-        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        frame1.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
         // Center the window on the screen
-        frame.setLocationRelativeTo(null);
+        frame1.setLocationRelativeTo(null);
 
         // Make the window visible
-        frame.setVisible(true);
+        frame1.setVisible(true);
 
-        Navigator navigator = new Navigator(frame);
+        Navigator navigator = new Navigator(frame1);
 
         StartupScreen startup = new StartupScreen(navigator);
         ChatScreen chat = new ChatScreen(navigator);
+        LobbyScreen lobby = new LobbyScreen(navigator);
+        GameScreen game = new GameScreen(navigator);
 
         navigator.register("startup", startup);
         navigator.register("chat", chat);
+        navigator.register("lobby", lobby);
+        navigator.register("game", game);
 
         navigator.goTo("startup");
     }
 
-    static JFrame frame;
 }

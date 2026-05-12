@@ -1,4 +1,5 @@
 package network;
+
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
@@ -26,10 +27,10 @@ import java.util.List;
 public class Server {
 
     // Log file where all chat messages are saved
-    static final String LOG_FILE   = "chatlog.txt";
+    static final String LOG_FILE = "chatlog.txt";
 
     // Directory where received files are saved
-    static final String FILES_DIR  = "received_files/";
+    static final String FILES_DIR = "received_files/";
 
     // Thread-safe list of all connected clients
     // We use synchronizedList because multiple threads access this list
@@ -42,7 +43,7 @@ public class Server {
     private final MessageListener listener;
 
     public Server(int port, MessageListener listener) {
-        this.port     = port;
+        this.port = port;
         this.listener = listener;
     }
 
@@ -115,7 +116,8 @@ public class Server {
                     String msg = dis.readUTF();
 
                     // Check if client wants to disconnect
-                    if (msg.equals("bye")) break;
+                    if (msg.equals("bye"))
+                        break;
 
                     // Display the message in our UI
                     listener.onMessage(msg);
@@ -128,9 +130,9 @@ public class Server {
 
                 } else if (type.equals("FILE")) {
                     // File transfer message
-                    String sender   = dis.readUTF();      // Who sent the file
-                    String fileName = dis.readUTF();       // Original file name
-                    long fileSize   = dis.readLong();      // File size in bytes
+                    String sender = dis.readUTF(); // Who sent the file
+                    String fileName = dis.readUTF(); // Original file name
+                    long fileSize = dis.readLong(); // File size in bytes
 
                     // Read the file data
                     byte[] fileData = new byte[(int) fileSize];
@@ -146,6 +148,10 @@ public class Server {
                     listener.onMessage(notice);
                     saveToFile(notice);
                     broadcast("MSG", notice, dos);
+                    
+                } else if (type.equals("GAME")) {
+                    String moveData = dis.readUTF(); // "row,col"
+                    broadcast("GAME", moveData, dos);
                 }
             }
         } catch (IOException e) {
@@ -190,7 +196,7 @@ public class Server {
         try (FileWriter fw = new FileWriter(LOG_FILE, true)) { // true = append mode
             // Get current timestamp
             String timestamp = LocalDateTime.now()
-                .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+                    .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
 
             // Write: [timestamp] message
             fw.write("[" + timestamp + "] " + msg + "\n");

@@ -3,6 +3,8 @@ package ui;
 import java.awt.*;
 import java.awt.datatransfer.*;
 import java.awt.event.*;
+import java.io.File;
+import java.io.IOException;
 import javax.swing.*;
 import network.*;
 import tunnel.*;
@@ -93,12 +95,17 @@ public class ChatScreen implements Screen {
         inputField.setFont(new Font("Arial", Font.PLAIN, 14));
         sendBtn = new JButton("Send");
         reconnectBtn = new JButton("Reconnect");
+        JButton fileBtn = new JButton(new ImageIcon("assets/paperclip.png"));
         reconnectBtn.setVisible(false);
 
         JPanel inputPanel = new JPanel(new BorderLayout());
-        inputPanel.add(inputField, BorderLayout.CENTER);
-        inputPanel.add(sendBtn, BorderLayout.EAST);
+        JPanel rightBtns = new JPanel(new BorderLayout());
+        rightBtns.add(fileBtn, BorderLayout.WEST);
+        rightBtns.add(sendBtn, BorderLayout.EAST);
+
         inputPanel.add(reconnectBtn, BorderLayout.WEST);
+        inputPanel.add(inputField, BorderLayout.CENTER);
+        inputPanel.add(rightBtns, BorderLayout.EAST);
 
         // ── Header bar ─────────────────────────
         JButton backBtn = new JButton("← Back");
@@ -137,6 +144,17 @@ public class ChatScreen implements Screen {
             public void keyPressed(KeyEvent e) {
                 if (e.getKeyCode() == KeyEvent.VK_ENTER)
                     send.run();
+            }
+        });
+        
+        fileBtn.addActionListener(e -> {
+            JFileChooser chooser = new JFileChooser();
+            int result = chooser.showOpenDialog(panel);
+            if (result == JFileChooser.APPROVE_OPTION) {
+                File file = chooser.getSelectedFile();
+                appendMessage("-- Sending: " + file.getName() + " --");
+                if (client != null)
+                    client.sendFile(file);
             }
         });
 
@@ -220,4 +238,27 @@ public class ChatScreen implements Screen {
             reconnectBtn.setVisible(!connected);
         });
     }
+
+    public void showFileNotification(String fileName, String filePath) {
+    SwingUtilities.invokeLater(() -> {
+        JPanel notif = new JPanel(new BorderLayout());
+        notif.setBorder(BorderFactory.createEmptyBorder(2, 5, 2, 5));
+
+        JLabel label = new JLabel("📎 " + fileName);
+        JButton openBtn = new JButton("Open");
+
+        openBtn.addActionListener(e -> {
+            try {
+                Desktop.getDesktop().open(new File(filePath));
+            } catch (IOException ex) {
+                appendMessage("-- Could not open file --");
+            }
+        });
+
+        notif.add(label,   BorderLayout.CENTER);
+        notif.add(openBtn, BorderLayout.EAST);
+
+        chatArea.add(notif); // won't work on JTextArea
+    });
+}
 }

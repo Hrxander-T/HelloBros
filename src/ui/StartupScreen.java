@@ -31,10 +31,11 @@ public class StartupScreen implements Screen {
         JTextField portField = new JTextField("4999");
         portField.setMaximumSize(new Dimension(Integer.MAX_VALUE, 35));
 
-        JLabel hostLabel = new JLabel("Host Address (join only):");
+        JLabel hostLabel = new JLabel("Connection Type:");
         hostLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
-        JTextField addressField = new JTextField("bore.pub");
-        addressField.setMaximumSize(new Dimension(Integer.MAX_VALUE, 35));
+        JComboBox<String> addressBox = new JComboBox<>(new String[]{"Local", "Remote"});
+        addressBox.setMaximumSize(new Dimension(Integer.MAX_VALUE, 35));
+        addressBox.setSelectedIndex(1);
 
         JButton hostBtn = new JButton("Host");
         hostBtn.setAlignmentX(Component.CENTER_ALIGNMENT);
@@ -53,7 +54,7 @@ public class StartupScreen implements Screen {
         panel.add(portField);
         panel.add(Box.createVerticalStrut(10));
         panel.add(hostLabel);
-        panel.add(addressField);
+        panel.add(addressBox);
         panel.add(Box.createVerticalStrut(20));
         panel.add(hostBtn);
         panel.add(Box.createVerticalStrut(10));
@@ -69,7 +70,7 @@ public class StartupScreen implements Screen {
         joinBtn.addActionListener(e -> {
             String name    = nameField.getText().trim();
             int port       = Integer.parseInt(portField.getText().trim());
-            String address = addressField.getText().trim();
+            String address = addressBox.getSelectedItem().equals("Local") ? "localhost" : "bore.pub";
             if (name.isEmpty()) { JOptionPane.showMessageDialog(null, "Enter your name."); return; }
             navigator.goTo("chat", new ChatArgs(name, port, address, false));
         });

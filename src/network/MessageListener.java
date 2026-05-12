@@ -1,8 +1,10 @@
 package network;
+
 /**
  * Bridge between network and UI.
  * This interface allows the Server/Client to communicate with the ChatScreen
- * without them being tightly coupled - they only communicate through these callbacks.
+ * without them being tightly coupled - they only communicate through these
+ * callbacks.
  *
  * How it works:
  * 1. ChatScreen implements this interface
@@ -19,4 +21,7 @@ public interface MessageListener {
     // Called when the connection to the server is lost
     // Used to show "Disconnected" message in the UI
     void onDisconnected();
+
+    void onGameMove(String moveData);
+
 }

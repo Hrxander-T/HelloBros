@@ -1,6 +1,9 @@
 package ui;
+
 import java.awt.*;
 import javax.swing.*;
+
+import network.NetworkManager;
 
 public class LobbyScreen implements Screen {
 
@@ -41,8 +44,15 @@ public class LobbyScreen implements Screen {
         panel.add(Box.createVerticalStrut(30));
         panel.add(backBtn);
 
-        chatBtn.addActionListener(e -> navigator.goTo("chat", getArgs()));
-        gameBtn.addActionListener(e -> navigator.goTo("game", getArgs()));
+        chatBtn.addActionListener(e -> {
+            NetworkManager.connect((LobbyArgs) currentArgs);
+            navigator.goTo("chat", currentArgs);
+        });
+
+        gameBtn.addActionListener(e -> {
+            NetworkManager.connect((LobbyArgs) currentArgs);
+            navigator.goTo("game", currentArgs);
+        });
         backBtn.addActionListener(e -> navigator.goTo("startup"));
     }
 
@@ -53,11 +63,16 @@ public class LobbyScreen implements Screen {
     private Object currentArgs;
 
     @Override
-    public JPanel getPanel() { return panel; }
+    public JPanel getPanel() {
+        return panel;
+    }
 
     @Override
-    public void onShow(Object args) { currentArgs = args; }
+    public void onShow(Object args) {
+        currentArgs = args;
+    }
 
     @Override
-    public void onHide() {}
+    public void onHide() {
+    }
 }

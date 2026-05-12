@@ -174,6 +174,11 @@ public class ChatScreen implements Screen {
             public void onDisconnected() {
                 appendMessage("-- Client disconnected --");
             }
+
+            @Override
+            public void onGameMove(String moveData) {
+                throw new UnsupportedOperationException("Not supported yet.");
+            }
         });
         server.start();
 
@@ -204,6 +209,11 @@ public class ChatScreen implements Screen {
                 appendMessage("-- Disconnected --");
                 setConnected(false);
             }
+
+            @Override
+            public void onGameMove(String moveData) {
+            } // not used in chat
+
         });
         client.start();
     }

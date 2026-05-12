@@ -1,7 +1,9 @@
+package ui;
 import java.awt.*;
 import java.awt.datatransfer.StringSelection;
 import java.awt.event.*;
 import javax.swing.*;
+import network.MessageListener;
 
 public class ChatScreen implements MessageListener {
 

@@ -1,5 +1,7 @@
+package tunnel;
 import java.io.*;
 import java.net.URISyntaxException;
+import main.ChatApp;
 
 public class BoreTunnel implements TunnelProvider {
 

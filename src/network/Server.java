@@ -1,3 +1,4 @@
+package network;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
@@ -160,7 +161,7 @@ public class Server {
     // type - message type ("MSG" or "PING")
     // msg - the message content
     // sender - the client who sent this message (won't receive it)
-    static void broadcast(String type, String msg, DataOutputStream sender) {
+    public static void broadcast(String type, String msg, DataOutputStream sender) {
         // Synchronized block protects against race conditions
         // (multiple threads trying to modify the clients list at once)
         synchronized (clients) {
@@ -185,7 +186,7 @@ public class Server {
 
     // Saves a message to the log file with a timestamp
     // msg - the message to save
-    static void saveToFile(String msg) {
+    public static void saveToFile(String msg) {
         try (FileWriter fw = new FileWriter(LOG_FILE, true)) { // true = append mode
             // Get current timestamp
             String timestamp = LocalDateTime.now()

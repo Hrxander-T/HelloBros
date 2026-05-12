@@ -1,3 +1,4 @@
+package network;
 /**
  * Bridge between network and UI.
  * This interface allows the Server/Client to communicate with the ChatScreen

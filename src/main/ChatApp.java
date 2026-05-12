@@ -1,4 +1,11 @@
+package main;
 import javax.swing.JFrame;
+import network.Client;
+import network.Server;
+import tunnel.TunnelFactory;
+import tunnel.TunnelProvider;
+import ui.ChatScreen;
+import ui.StartupScreen;
 
 /**
  * Entry point of the chat application.

@@ -1,8 +1,8 @@
 package ui;
 
+import javax.swing.*;
 import java.util.HashMap;
 import java.util.Map;
-import javax.swing.*;
 
 public class Navigator {
 
@@ -19,16 +19,16 @@ public class Navigator {
     }
 
     public void goTo(String name) {
+        goTo(name, null);
+    }
+
+    public void goTo(String name, Object args) {
         Screen next = screens.get(name);
-        if (next == null) {
-            System.out.println("Navigator: screen not found: " + name);
-            return;
-        }
+        if (next == null) { System.out.println("Screen not found: " + name); return; }
 
         if (current != null) current.onHide();
-
         current = next;
-        current.onShow();
+        current.onShow(args);
 
         SwingUtilities.invokeLater(() -> {
             frame.getContentPane().removeAll();

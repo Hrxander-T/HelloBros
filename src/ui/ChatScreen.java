@@ -1,14 +1,16 @@
 package ui;
+
 import java.awt.*;
-import java.awt.datatransfer.StringSelection;
+import java.awt.datatransfer.*;
 import java.awt.event.*;
 import javax.swing.*;
-import network.MessageListener;
+import network.*;
+import tunnel.*;
 
-public class ChatScreen implements MessageListener {
+public class ChatScreen implements Screen {
 
-    private final JFrame frame;
-    private final String name;
+    private final Navigator navigator;
+    private JPanel panel;
     private JTextArea chatArea;
     private JTextField inputField;
     private JButton sendBtn;
@@ -16,38 +18,58 @@ public class ChatScreen implements MessageListener {
     private JPanel tunnelPanel;
     private JLabel tunnelLabel;
 
-    protected void onSend(String msg) {
+    private Client client;
+    private Server server;
+    private TunnelProvider tunnel;
+
+    public ChatScreen(Navigator navigator) {
+        this.navigator = navigator;
     }
 
-    protected void onReconnect() {
-    } // called when reconnect clicked
-
-    public ChatScreen(JFrame frame, String name) {
-        this.frame = frame;
-        this.name = name;
+    @Override
+    public JPanel getPanel() {
+        return panel;
     }
 
-    public void show() {
-        chatArea = new JTextArea();
-        chatArea.setEditable(false);
-        chatArea.setLineWrap(true);
-        chatArea.setWrapStyleWord(true);
-        chatArea.setFont(new Font("Arial", Font.PLAIN, 14));
+    @Override
+    public void onShow(Object args) {
+        ChatArgs a = (ChatArgs) args;
+        buildPanel(a.name);
 
-        JScrollPane scrollPane = new JScrollPane(chatArea);
+        if (a.isHost) {
+            startServer(a.name, a.port);
+        } else {
+            startClient(a.name, a.address, a.port);
+        }
+    }
 
-        // ── Tunnel info bar (host only) ────────
+    @Override
+    public void onHide() {
+        // cleanup on leaving screen
+        if (client != null) {
+            client = null;
+        }
+        if (tunnel != null) {
+            tunnel.stop();
+            tunnel = null;
+        }
+    }
+
+    private void buildPanel(String name) {
+        panel = new JPanel(new BorderLayout());
+
+        // ── Tunnel info bar ────────────────────
         tunnelLabel = new JLabel("Starting tunnel...");
         tunnelLabel.setFont(new Font("Arial", Font.PLAIN, 12));
 
         JButton copyBtn = new JButton("Copy");
         copyBtn.setFont(new Font("Arial", Font.PLAIN, 11));
-        copyBtn.setVisible(true);
         copyBtn.addActionListener(e -> {
-            String text = tunnelLabel.getText();
-            String port = text.split(":")[1]; // "61749"
-            StringSelection sel = new StringSelection(port);
-            Toolkit.getDefaultToolkit().getSystemClipboard().setContents(sel, null);
+            String port = tunnelLabel.getText().contains(":")
+                    ? tunnelLabel.getText().split(":")[1].trim()
+                    : tunnelLabel.getText();
+            Toolkit.getDefaultToolkit().getSystemClipboard()
+                    .setContents(new StringSelection(port), null);
         });
 
         tunnelPanel = new JPanel(new BorderLayout());
@@ -56,34 +78,56 @@ public class ChatScreen implements MessageListener {
         tunnelPanel.add(new JLabel("Share: "), BorderLayout.WEST);
         tunnelPanel.add(tunnelLabel, BorderLayout.CENTER);
         tunnelPanel.add(copyBtn, BorderLayout.EAST);
-        tunnelPanel.setVisible(false); // hidden until tunnel starts
+        tunnelPanel.setVisible(false);
 
+        // ── Chat area ──────────────────────────
+        chatArea = new JTextArea();
+        chatArea.setEditable(false);
+        chatArea.setLineWrap(true);
+        chatArea.setWrapStyleWord(true);
+        chatArea.setFont(new Font("Arial", Font.PLAIN, 14));
+        JScrollPane scrollPane = new JScrollPane(chatArea);
+
+        // ── Input area ─────────────────────────
         inputField = new JTextField();
         inputField.setFont(new Font("Arial", Font.PLAIN, 14));
-
         sendBtn = new JButton("Send");
         reconnectBtn = new JButton("Reconnect");
-        reconnectBtn.setVisible(false); // hidden until disconnected
+        reconnectBtn.setVisible(false);
 
         JPanel inputPanel = new JPanel(new BorderLayout());
         inputPanel.add(inputField, BorderLayout.CENTER);
         inputPanel.add(sendBtn, BorderLayout.EAST);
         inputPanel.add(reconnectBtn, BorderLayout.WEST);
 
-        frame.getContentPane().removeAll();
-        frame.setLayout(new BorderLayout());
-        frame.add(tunnelPanel, BorderLayout.NORTH);
-        frame.add(scrollPane, BorderLayout.CENTER);
-        frame.add(inputPanel, BorderLayout.SOUTH);
-        frame.revalidate();
-        frame.repaint();
+        // ── Header bar ─────────────────────────
+        JButton backBtn = new JButton("← Back");
+        backBtn.setFont(new Font("Arial", Font.PLAIN, 11));
+        backBtn.addActionListener(e -> {
+            onHide();
+            navigator.goTo("startup");
+        });
 
+        JPanel headerPanel = new JPanel(new BorderLayout());
+        headerPanel.add(backBtn, BorderLayout.WEST);
+        headerPanel.add(tunnelPanel, BorderLayout.CENTER);
+
+        panel.add(headerPanel, BorderLayout.NORTH);
+        panel.add(scrollPane, BorderLayout.CENTER);
+        panel.add(inputPanel, BorderLayout.SOUTH);
+
+        // ── Actions ────────────────────────────
         Runnable send = () -> {
             String msg = inputField.getText().trim();
             if (msg.isEmpty())
                 return;
             appendMessage("[" + name + "]: " + msg);
-            onSend(msg);
+            if (client != null)
+                client.send(msg);
+            if (server != null) {
+                Server.broadcast("MSG", "[" + name + "]: " + msg, null);
+                Server.saveToFile("[" + name + "]: " + msg);
+            }
             inputField.setText("");
         };
 
@@ -101,10 +145,56 @@ public class ChatScreen implements MessageListener {
             sendBtn.setVisible(true);
             inputField.setEnabled(true);
             appendMessage("-- Reconnecting... --");
-            onReconnect();
+            if (client != null)
+                client.start();
         });
 
         appendMessage("-- Connected as " + name + " --");
+    }
+
+    private void startServer(String name, int port) {
+        server = new Server(port, new MessageListener() {
+            @Override
+            public void onMessage(String msg) {
+                appendMessage(msg);
+            }
+
+            @Override
+            public void onDisconnected() {
+                appendMessage("-- Client disconnected --");
+            }
+        });
+        server.start();
+
+        tunnel = TunnelFactory.create(TunnelFactory.Provider.BORE);
+        tunnel.start(port, new TunnelProvider.TunnelListener() {
+            @Override
+            public void onReady(String address) {
+                showTunnelInfo(address);
+                appendMessage("-- Tunnel ready: " + address + " --");
+            }
+
+            @Override
+            public void onError(String error) {
+                appendMessage("-- Tunnel error: " + error + " --");
+            }
+        });
+    }
+
+    private void startClient(String name, String address, int port) {
+        client = new Client(address, port, name, new MessageListener() {
+            @Override
+            public void onMessage(String msg) {
+                appendMessage(msg);
+            }
+
+            @Override
+            public void onDisconnected() {
+                appendMessage("-- Disconnected --");
+                setConnected(false);
+            }
+        });
+        client.start();
     }
 
     public void appendMessage(String msg) {
@@ -118,11 +208,8 @@ public class ChatScreen implements MessageListener {
         SwingUtilities.invokeLater(() -> {
             tunnelLabel.setText(address);
             tunnelPanel.setVisible(true);
-            frame.revalidate();
-            frame.repaint();
-            System.out.println("tunnelPanel visible: " + tunnelPanel.isVisible());
-            System.out.println("tunnelPanel parent: " + tunnelPanel.getParent());
-            System.out.println("frame components: " + frame.getContentPane().getComponentCount());
+            panel.revalidate();
+            panel.repaint();
         });
     }
 
@@ -132,16 +219,5 @@ public class ChatScreen implements MessageListener {
             sendBtn.setVisible(connected);
             reconnectBtn.setVisible(!connected);
         });
-    }
-
-    @Override
-    public void onMessage(String msg) {
-        appendMessage(msg);
-    }
-
-    @Override
-    public void onDisconnected() {
-        appendMessage("-- Disconnected --");
-        setConnected(false);
     }
 }

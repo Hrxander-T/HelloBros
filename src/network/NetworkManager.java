@@ -15,6 +15,9 @@ public class NetworkManager {
     private static TunnelProvider tunnel;
     private static String tunnelAddress = null;
 
+    private static String lastRoomID; // room ID used to join
+    private static String lastName; // name used to connect
+
     private static boolean started = false;
     private static boolean isHost = false;
 
@@ -33,13 +36,17 @@ public class NetworkManager {
             return;
         started = true;
         isHost = a.isHost;
+        lastName = a.name;
+        lastRoomID = a.address;
+
 
         MessageListener listener = buildListener();
 
         if (isHost) {
             server = new Server(a.port, listener);
             server.start();
-            if (lobby != null) lobby.setStatus("Starting tunnel...");
+            if (lobby != null)
+                lobby.setStatus("Starting tunnel...");
             startTunnel(a.port);
         } else {
             Thread t = new Thread(() -> {
@@ -150,6 +157,45 @@ public class NetworkManager {
         return signaling.getRoomID();
     }
 
+    private static void startReconnectPoller() {
+        @SuppressWarnings("BusyWait")
+        Thread poller = new Thread(() -> {
+            String roomID = signaling.getRoomID() != null
+                    ? signaling.getRoomID()
+                    : lastRoomID; // store roomID used to join
+
+            int attempts = 0;
+            while (attempts < 10) {
+                try {
+                    Thread.sleep(3000); // wait 3 seconds between attempts
+                    int newPort = signaling.joinRoom(roomID);
+                    System.out.println("Reconnecting to port: " + newPort);
+
+                    client = new Client("bore.pub", newPort, lastName, buildListener());
+                    client.start();
+
+                    SwingUtilities.invokeLater(() -> {
+                        if (chat != null) {
+                            chat.appendMessage("-- Reconnected --");
+                            chat.setConnected(true);
+                        }
+                    });
+                    return; // success
+
+                } catch (Exception e) {
+                    attempts++;
+                    System.out.println("Reconnect attempt " + attempts + " failed");
+                }
+            }
+            SwingUtilities.invokeLater(() -> {
+                if (chat != null)
+                    chat.appendMessage("-- Could not reconnect --");
+            });
+        });
+        poller.setDaemon(true);
+        poller.start();
+    }
+
     private final static SignalingClient signaling = new SignalingClient();
 
     private static MessageListener buildListener() {
@@ -173,6 +219,9 @@ public class NetworkManager {
                 if (chat != null) {
                     chat.appendMessage("-- Disconnected --");
                     chat.setConnected(false);
+                }
+                if (!isHost) {
+                    startReconnectPoller();
                 }
             }
 
@@ -237,7 +286,7 @@ public class NetworkManager {
             public void onError(String error) {
                 if (chat != null)
                     chat.appendMessage("-- Tunnel error: " + error + " --");
-                
+
             }
         });
     }

@@ -98,7 +98,7 @@ public class ChatScreen implements Screen {
         inputField   = new JTextField();
         sendBtn      = new JButton("Send");
         reconnectBtn = new JButton("Reconnect");
-        JButton fileBtn = new JButton("📎");
+        JButton fileBtn = new JButton(Assets.PAPERCLIP);
         reconnectBtn.setVisible(false);
 
         JPanel rightBtns = new JPanel(new BorderLayout());

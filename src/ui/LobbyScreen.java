@@ -80,7 +80,7 @@ public class LobbyScreen implements Screen {
         statusLabel.setVisible(false);
 
         // ── Buttons ────────────────────────────
-        JButton chatBtn = new JButton("💬 Chat");
+        JButton chatBtn = new JButton("Chat", Assets.SPEECH_BUBBLE);
         chatBtn.setAlignmentX(Component.CENTER_ALIGNMENT);
         chatBtn.setMaximumSize(new Dimension(Integer.MAX_VALUE, 50));
 

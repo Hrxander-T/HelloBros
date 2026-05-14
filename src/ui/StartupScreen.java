@@ -31,9 +31,15 @@ public class StartupScreen implements Screen {
         subtitle.setAlignmentX(Component.CENTER_ALIGNMENT);
 
         // ── Name field ─────────────────────────
+        JLabel nameLabel = new JLabel("Your Name");
+        nameLabel.setFont(new Font("Arial", Font.PLAIN, 12));
+        nameLabel.setForeground(new Color(100, 100, 100));
+        nameLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+
         JTextField nameField = new JTextField(NameGenerator.generate());
         nameField.setMaximumSize(new Dimension(Integer.MAX_VALUE, 38));
         nameField.setFont(new Font("Arial", Font.PLAIN, 14));
+        nameField.setAlignmentX(Component.CENTER_ALIGNMENT);
 
         JButton randomBtn = new JButton(Assets.DICE);
         randomBtn.setFocusable(false);
@@ -42,13 +48,9 @@ public class StartupScreen implements Screen {
 
         JPanel namePanel = new JPanel(new BorderLayout(5, 0));
         namePanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 38));
+        namePanel.setAlignmentX(Component.CENTER_ALIGNMENT);
         namePanel.add(nameField, BorderLayout.CENTER);
         namePanel.add(randomBtn, BorderLayout.EAST);
-
-        JLabel nameLabel = new JLabel("Your Name");
-        nameLabel.setFont(new Font("Arial", Font.PLAIN, 12));
-        nameLabel.setForeground(new Color(100, 100, 100));
-        nameLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         // ── Host button ────────────────────────
         JButton hostBtn = new JButton("Host a Room");
@@ -57,31 +59,31 @@ public class StartupScreen implements Screen {
         hostBtn.setFont(new Font("Arial", Font.BOLD, 14));
         hostBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
         hostBtn.setFocusPainted(false);
-        
 
         // ── Divider ────────────────────────────
-        JPanel divider = new JPanel(new BorderLayout(8, 0));
-        divider.setMaximumSize(new Dimension(Integer.MAX_VALUE, 20));
-        divider.setOpaque(false);
-        JSeparator leftLine = new JSeparator();
-        JSeparator rightLine = new JSeparator();
         JLabel orLabel = new JLabel("or");
         orLabel.setForeground(new Color(150, 150, 150));
-        orLabel.setFont(new Font("Arial", Font.BOLD, 12));
-        orLabel.setHorizontalAlignment(SwingConstants.CENTER);
-        divider.add(leftLine, BorderLayout.WEST);
+        orLabel.setFont(new Font("Arial", Font.PLAIN, 12));
+        orLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        JPanel divider = new JPanel(new BorderLayout(8, 0));
+        divider.setMaximumSize(new Dimension(Integer.MAX_VALUE, 20));
+        divider.setAlignmentX(Component.CENTER_ALIGNMENT);
+        divider.setOpaque(false);
+        divider.add(new JSeparator(), BorderLayout.WEST);
         divider.add(orLabel, BorderLayout.CENTER);
-        divider.add(rightLine, BorderLayout.EAST);
+        divider.add(new JSeparator(), BorderLayout.EAST);
 
         // ── Room ID field ──────────────────────
         JLabel roomLabel = new JLabel("Room ID");
         roomLabel.setFont(new Font("Arial", Font.PLAIN, 12));
         roomLabel.setForeground(new Color(100, 100, 100));
-        roomLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        roomLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
 
         JTextField roomField = new JTextField();
         roomField.setMaximumSize(new Dimension(Integer.MAX_VALUE, 38));
         roomField.setFont(new Font("Arial", Font.PLAIN, 14));
+        roomField.setAlignmentX(Component.CENTER_ALIGNMENT);
         roomField.setToolTipText("e.g. X4K9P2");
 
         // ── Join button ────────────────────────
@@ -143,7 +145,6 @@ public class StartupScreen implements Screen {
             navigator.goTo("lobby", args);
         });
 
-        // pressing Enter in room field triggers join
         roomField.addActionListener(e -> joinBtn.doClick());
     }
 

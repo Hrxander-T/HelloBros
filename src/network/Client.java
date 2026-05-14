@@ -31,9 +31,9 @@ public class Client {
                     while (true) {
                         String type = dis.readUTF();
                         switch (type) {
-                            case "MSG" -> listener.onMessage(dis.readUTF());
-                            case "PING" -> dis.readUTF();
-                            case "GAME" -> {
+                            case Protocol.MSG -> listener.onMessage(dis.readUTF());
+                            case Protocol.PING -> dis.readUTF();
+                            case Protocol.GAME -> {
                                 String moveData = dis.readUTF();
                                 listener.onGameMove(moveData);
                             }
@@ -55,11 +55,9 @@ public class Client {
     }
 
     public void send(String msg) {
-        if (dos == null)
-            return;
         try {
-            dos.writeUTF("MSG");
-            dos.writeUTF("[" + name + "]: " + msg);
+            dos.writeUTF(Protocol.MSG);
+            dos.writeUTF(msg);
         } catch (IOException e) {
             listener.onMessage("Send error: " + e.getMessage());
         }
@@ -73,7 +71,7 @@ public class Client {
             try (FileInputStream fis = new FileInputStream(file)) {
                 fileData = fis.readAllBytes();
             }
-            dos.writeUTF("FILE");
+            dos.writeUTF(Protocol.FILE);
             dos.writeUTF(name);
             dos.writeUTF(file.getName());
             dos.writeLong(fileData.length);
@@ -89,10 +87,21 @@ public class Client {
         if (dos == null)
             return;
         try {
-            dos.writeUTF("GAME");
+            dos.writeUTF(Protocol.GAME);
             dos.writeUTF(row + "," + col);
         } catch (IOException e) {
             listener.onMessage("Move send error: " + e.getMessage());
+        }
+    }
+
+    public void sendGameSignal(String signal) {
+        if (dos == null)
+            return;
+        try {
+            dos.writeUTF(Protocol.GAME);
+            dos.writeUTF(signal);
+        } catch (IOException e) {
+            listener.onMessage("Signal error: " + e.getMessage());
         }
     }
 }

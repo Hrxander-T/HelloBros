@@ -1,6 +1,7 @@
 package main;
 
 import javax.swing.*;
+import network.NetworkManager;
 import ui.*;
 
 /**
@@ -31,6 +32,8 @@ public class ChatApp {
         LobbyScreen lobby = new LobbyScreen(navigator);
         GameScreen game = new GameScreen(navigator);
 
+        NetworkManager.init(chat, game,lobby); 
+        
         navigator.register("startup", startup);
         navigator.register("chat", chat);
         navigator.register("lobby", lobby);

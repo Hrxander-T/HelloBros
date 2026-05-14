@@ -22,6 +22,6 @@ public interface MessageListener {
     // Used to show "Disconnected" message in the UI
     void onDisconnected();
 
-    void onGameMove(String moveData);
+    void onGameMove(String moveData); // "row,col" or "RESET"
 
 }

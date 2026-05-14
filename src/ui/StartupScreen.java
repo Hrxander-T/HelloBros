@@ -2,6 +2,8 @@ package ui;
 
 import java.awt.*;
 import javax.swing.*;
+import network.NetworkManager;
+import util.NameGenerator;
 
 public class StartupScreen implements Screen {
 
@@ -24,8 +26,21 @@ public class StartupScreen implements Screen {
 
         JLabel nameLabel = new JLabel("Your Name:");
         nameLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
-        JTextField nameField = new JTextField();
+
+        JPanel namePanel = new JPanel();
+        namePanel.setLayout(new BoxLayout(namePanel, BoxLayout.X_AXIS));
+        namePanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 35));
+
+        JTextField nameField = new JTextField(NameGenerator.generate());
         nameField.setMaximumSize(new Dimension(Integer.MAX_VALUE, 35));
+
+        JButton randomBtn = new JButton(Assets.DICE);
+        randomBtn.setMargin(new Insets(0, 8, 0, 8));
+        randomBtn.setFocusable(false);
+        randomBtn.addActionListener(e -> nameField.setText(NameGenerator.generate()));
+
+        namePanel.add(nameField);
+        namePanel.add(randomBtn);
 
         JLabel portLabel = new JLabel("Port:");
         portLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
@@ -49,7 +64,7 @@ public class StartupScreen implements Screen {
         panel.add(title);
         panel.add(Box.createVerticalStrut(30));
         panel.add(nameLabel);
-        panel.add(nameField);
+        panel.add(namePanel);
         panel.add(Box.createVerticalStrut(10));
         panel.add(portLabel);
         panel.add(portField);
@@ -68,6 +83,8 @@ public class StartupScreen implements Screen {
                 JOptionPane.showMessageDialog(null, "Enter your name.");
                 return;
             }
+            LobbyArgs args = new LobbyArgs(name, port, null, true);
+            NetworkManager.connect(args);
             navigator.goTo("lobby", new LobbyArgs(name, port, null, true));
         });
 
@@ -79,6 +96,9 @@ public class StartupScreen implements Screen {
                 JOptionPane.showMessageDialog(null, "Enter your name.");
                 return;
             }
+            LobbyArgs args = new LobbyArgs(name, port, address, false);
+
+            NetworkManager.connect(args);
             navigator.goTo("lobby", new LobbyArgs(name, port, address, false));
         });
     }

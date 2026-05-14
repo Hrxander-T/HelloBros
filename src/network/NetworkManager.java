@@ -39,10 +39,24 @@ public class NetworkManager {
         if (isHost) {
             server = new Server(a.port, listener);
             server.start();
+            if (lobby != null) lobby.setStatus("Starting tunnel...");
             startTunnel(a.port);
         } else {
-            client = new Client(a.address, a.port, a.name, listener);
-            client.start();
+            Thread t = new Thread(() -> {
+                try {
+                    int port = signaling.joinRoom(a.address); // a.address = roomID
+                    client = new Client("bore.pub", port, a.name, listener);
+                    client.start();
+                } catch (Exception e) {
+                    // notify UI
+                    SwingUtilities.invokeLater(() -> {
+                        if (chat != null)
+                            chat.appendMessage("-- Room not found: " + a.address + " --");
+                    });
+                }
+            });
+            t.setDaemon(true);
+            t.start();
         }
     }
 
@@ -112,6 +126,14 @@ public class NetworkManager {
         tunnelAddress = null;
     }
 
+    public static void cleanup() {
+        signaling.deleteRoom();
+        if (tunnel != null)
+            tunnel.stop();
+        if (server != null)
+            server.stop();
+    }
+
     public static boolean isHost() {
         return isHost;
     }
@@ -123,6 +145,12 @@ public class NetworkManager {
     public static String getTunnelAddress() {
         return tunnelAddress;
     }
+
+    public static String getRoomID() {
+        return signaling.getRoomID();
+    }
+
+    private final static SignalingClient signaling = new SignalingClient();
 
     private static MessageListener buildListener() {
         return new MessageListener() {
@@ -179,21 +207,37 @@ public class NetworkManager {
         tunnel.start(port, new TunnelProvider.TunnelListener() {
             @Override
             public void onReady(String address) {
-                tunnelAddress = address;
-                if (lobby != null)
-                    lobby.showTunnelInfo(address);
-                if (chat != null) {
-                    chat.showTunnelInfo(address);
-                    chat.appendMessage("-- Tunnel ready: " + address + " --");
-                }
+
+                int borePort = Integer.parseInt(address.trim());
+
+                // register or update room on signaling server
+                Thread t = new Thread(() -> {
+                    try {
+                        if (signaling.getRoomID() == null) {
+                            String roomID = signaling.createRoom(borePort);
+                            if (lobby != null)
+                                lobby.showRoomID(roomID);
+                            if (chat != null)
+                                chat.showTunnelInfo(roomID);
+                        } else {
+                            signaling.updatePort(borePort);
+                            if (lobby != null)
+                                lobby.showRoomID(signaling.getRoomID());
+                        }
+                    } catch (Exception e) {
+                        if (chat != null)
+                            chat.appendMessage("-- Signaling error: " + e.getMessage() + " --");
+                    }
+                });
+                t.setDaemon(true);
+                t.start();
             }
 
             @Override
             public void onError(String error) {
                 if (chat != null)
                     chat.appendMessage("-- Tunnel error: " + error + " --");
-                if (lobby != null)
-                    lobby.showTunnelInfo("Tunnel failed");
+                
             }
         });
     }

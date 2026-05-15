@@ -4,6 +4,7 @@ import game.TicTacToe;
 import game.TicTacToe.Mark;
 import java.awt.*;
 import javax.swing.*;
+import model.LobbyArgs;
 import network.NetworkManager;
 
 public class GameScreen implements Screen {

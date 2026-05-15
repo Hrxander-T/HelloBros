@@ -6,6 +6,8 @@ import java.awt.event.*;
 import java.io.File;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
+import model.ChatArgs;
+import model.LobbyArgs;
 import network.NetworkManager;
 
 public class ChatScreen implements Screen {

@@ -2,6 +2,7 @@ package ui;
 
 import java.awt.*;
 import javax.swing.*;
+import model.LobbyArgs;
 import network.NetworkManager;
 import util.NameGenerator;
 

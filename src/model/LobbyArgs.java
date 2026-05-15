@@ -1,4 +1,4 @@
-package ui;
+package model;
 
 public class LobbyArgs {
     public final String name;

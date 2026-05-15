@@ -1,11 +1,11 @@
 package network;
 
 import javax.swing.SwingUtilities;
+import model.LobbyArgs;
 import tunnel.TunnelFactory;
 import tunnel.TunnelProvider;
 import ui.ChatScreen;
 import ui.GameScreen;
-import ui.LobbyArgs;
 import ui.LobbyScreen;
 
 public class NetworkManager {

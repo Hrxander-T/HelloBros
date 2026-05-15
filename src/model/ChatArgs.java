@@ -1,4 +1,4 @@
-package ui;
+package model;
 
 public class ChatArgs {
     public final String name;

@@ -120,6 +120,14 @@ public class Server {
                         saveToFile(msg);
                         broadcast(Protocol.MSG, msg, dos);
                     }
+                    case Protocol.REACTION -> {
+                        String msgId = dis.readUTF();
+                        String emoji = dis.readUTF();
+                        String sender2 = dis.readUTF();
+                        String payload = msgId + ":" + emoji + ":" + sender2;
+                        listener.onReaction(msgId, emoji, sender2);
+                        broadcast(Protocol.REACTION, payload, dos);
+                    }
                     case Protocol.FILE -> {
                         String sender = dis.readUTF();
                         String fileName = dis.readUTF();

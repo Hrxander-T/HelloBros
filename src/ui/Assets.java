@@ -11,8 +11,11 @@ public class Assets {
 
     private static ImageIcon load(String path) {
         var url = Assets.class.getClassLoader().getResource(path);
-        System.out.println("Loading: " + path + " -> " + url);
-        return new ImageIcon(url);
+        if (url != null)
+            return new ImageIcon(url);
+
+        // System.out.println("Loading: " + path + " -> " + url);
+        return new ImageIcon(path);
     }
 
     private static ImageIcon scale(ImageIcon icon, int w, int h) {

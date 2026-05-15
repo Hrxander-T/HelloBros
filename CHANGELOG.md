@@ -3,6 +3,24 @@
 All notable changes to this project will be documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [Unreleased]
+### Added
+- Java Swing don't have good emoji support. Swing will be relplace.
+- Mobile Support
+
+---
+
+## [1.2.1] - 2026-05-15
+
+### Added
+- Right-click on message → emoji picker
+- Count displays beside the message (👍 2)
+- Message IDs synced across clients so reactions match correctly
+- ### Changed
+- Chat Screeen UI updated to support emoji
+
+---
+
 ## [1.2.0] - 2026-05-14
 
 ### Added

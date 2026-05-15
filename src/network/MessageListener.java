@@ -24,4 +24,6 @@ public interface MessageListener {
 
     void onGameMove(String moveData); // "row,col" or "RESET"
 
+    void onReaction(String msgID , String emoji , String sender);
+
 }

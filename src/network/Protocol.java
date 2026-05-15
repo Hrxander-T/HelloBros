@@ -5,6 +5,7 @@ public class Protocol {
     public static final String GAME = "GAME";
     public static final String FILE = "FILE";
     public static final String PING = "PING";
+    public static final String REACTION   = "REACTION";
 
     public static final String GAME_REQUEST = "REQUEST";
     public static final String GAME_ACCEPT  = "ACCEPT";

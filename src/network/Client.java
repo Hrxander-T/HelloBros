@@ -37,6 +37,11 @@ public class Client {
                                 String moveData = dis.readUTF();
                                 listener.onGameMove(moveData);
                             }
+                            case Protocol.REACTION -> {
+                                String payload = dis.readUTF(); // "msgId:emoji:sender"
+                                String[] parts = payload.split(":", 3);
+                                listener.onReaction(parts[0], parts[1], parts[2]);
+                            }
                             default -> {
                             }
                         }
@@ -83,6 +88,17 @@ public class Client {
         }
     }
 
+    public void sendReaction(String messageId, String emoji) {
+        try {
+            dos.writeUTF(Protocol.REACTION);
+            dos.writeUTF(messageId);
+            dos.writeUTF(emoji);
+            dos.writeUTF(name);
+        } catch (IOException e) {
+            listener.onMessage("Reaction error: " + e.getMessage());
+        }
+    }
+
     public void sendMove(int row, int col) {
         if (dos == null)
             return;
@@ -105,5 +121,4 @@ public class Client {
         }
     }
 
-    
 }

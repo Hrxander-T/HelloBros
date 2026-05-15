@@ -10,20 +10,29 @@ import ui.LobbyScreen;
 
 public class NetworkManager {
 
+    // ==================== Static Fields ====================
+
+    // Core networking
     private static Server server;
     private static Client client;
     private static TunnelProvider tunnel;
-    private static String tunnelAddress = null;
+    private static final SignalingClient signaling = new SignalingClient();
 
+    // Connection state
+    private static String tunnelAddress = null;
     private static String lastRoomID; // room ID used to join
     private static String lastName; // name used to connect
-
     private static boolean started = false;
     private static boolean isHost = false;
 
+    // UI references
     private static ChatScreen chat;
     private static GameScreen game;
     private static LobbyScreen lobby;
+
+    // ==================== Static Methods ====================
+
+    // --- Public Methods ---
 
     public static void init(ChatScreen c, GameScreen g, LobbyScreen l) {
         chat = c;
@@ -38,7 +47,6 @@ public class NetworkManager {
         isHost = a.isHost;
         lastName = a.name;
         lastRoomID = a.address;
-
 
         MessageListener listener = buildListener();
 
@@ -67,14 +75,30 @@ public class NetworkManager {
         }
     }
 
-    public static void sendMessage(String name, String msg) {
-        String formatted = "[" + name + "]: " + msg;
+    public static void sendMessage(String name, String id, String msg) {
+        String formatted = id + "|[" + name + "]: " + msg;
         if (isHost) {
             Server.broadcast(Protocol.MSG, formatted, null);
             Server.saveToFile(formatted);
         } else if (client != null) {
             client.send(formatted);
         }
+    }
+
+    public static void sendReaction(String messageId, String emoji) {
+        if (isHost) {
+            Server.broadcast(Protocol.REACTION, messageId + ":" + emoji + ":" + lastName, null);
+        } else if (client != null) {
+            client.sendReaction(messageId, emoji);
+        }
+        // show locally for sender too
+        if (chat != null)
+            chat.appendReaction(messageId, emoji, lastName);
+    }
+
+    public static void sendFile(java.io.File file) {
+        if (client != null)
+            client.sendFile(file);
     }
 
     public static void sendMove(int row, int col) {
@@ -84,11 +108,6 @@ public class NetworkManager {
         } else if (client != null) {
             client.sendMove(row, col);
         }
-    }
-
-    public static void sendFile(java.io.File file) {
-        if (client != null)
-            client.sendFile(file);
     }
 
     public static void sendGameRequest() {
@@ -157,46 +176,7 @@ public class NetworkManager {
         return signaling.getRoomID();
     }
 
-    private static void startReconnectPoller() {
-        @SuppressWarnings("BusyWait")
-        Thread poller = new Thread(() -> {
-            String roomID = signaling.getRoomID() != null
-                    ? signaling.getRoomID()
-                    : lastRoomID; // store roomID used to join
-
-            int attempts = 0;
-            while (attempts < 10) {
-                try {
-                    Thread.sleep(3000); // wait 3 seconds between attempts
-                    int newPort = signaling.joinRoom(roomID);
-                    System.out.println("Reconnecting to port: " + newPort);
-
-                    client = new Client("bore.pub", newPort, lastName, buildListener());
-                    client.start();
-
-                    SwingUtilities.invokeLater(() -> {
-                        if (chat != null) {
-                            chat.appendMessage("-- Reconnected --");
-                            chat.setConnected(true);
-                        }
-                    });
-                    return; // success
-
-                } catch (Exception e) {
-                    attempts++;
-                    System.out.println("Reconnect attempt " + attempts + " failed");
-                }
-            }
-            SwingUtilities.invokeLater(() -> {
-                if (chat != null)
-                    chat.appendMessage("-- Could not reconnect --");
-            });
-        });
-        poller.setDaemon(true);
-        poller.start();
-    }
-
-    private final static SignalingClient signaling = new SignalingClient();
+    // --- Private Methods ---
 
     private static MessageListener buildListener() {
         return new MessageListener() {
@@ -212,6 +192,14 @@ public class NetworkManager {
                     if (game != null)
                         game.setConnectionStatus("Opponent disconnected");
                 }
+            }
+
+            @Override
+            public void onReaction(String msgID, String emoji, String sender) {
+                SwingUtilities.invokeLater(() -> {
+                    if (chat != null)
+                        chat.appendReaction(msgID, emoji, sender);
+                });
             }
 
             @Override
@@ -289,5 +277,44 @@ public class NetworkManager {
 
             }
         });
+    }
+
+    private static void startReconnectPoller() {
+        @SuppressWarnings("BusyWait")
+        Thread poller = new Thread(() -> {
+            String roomID = signaling.getRoomID() != null
+                    ? signaling.getRoomID()
+                    : lastRoomID; // store roomID used to join
+
+            int attempts = 0;
+            while (attempts < 10) {
+                try {
+                    Thread.sleep(3000); // wait 3 seconds between attempts
+                    int newPort = signaling.joinRoom(roomID);
+                    System.out.println("Reconnecting to port: " + newPort);
+
+                    client = new Client("bore.pub", newPort, lastName, buildListener());
+                    client.start();
+
+                    SwingUtilities.invokeLater(() -> {
+                        if (chat != null) {
+                            chat.appendMessage("-- Reconnected --");
+                            chat.setConnected(true);
+                        }
+                    });
+                    return; // success
+
+                } catch (Exception e) {
+                    attempts++;
+                    System.out.println("Reconnect attempt " + attempts + " failed");
+                }
+            }
+            SwingUtilities.invokeLater(() -> {
+                if (chat != null)
+                    chat.appendMessage("-- Could not reconnect --");
+            });
+        });
+        poller.setDaemon(true);
+        poller.start();
     }
 }

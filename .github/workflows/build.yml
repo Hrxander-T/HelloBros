@@ -3,25 +3,58 @@ name: Build HelloBros
 permissions:
   contents: write
 
+env:
+  JAVA_VERSION: "21"
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 on:
   push:
     tags:
       - "v*"
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:
-  build-windows:
-    runs-on: windows-latest
+  compile-check:
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up JDK 21
+      - name: Set up JDK
         uses: actions/setup-java@v4
         with:
-          java-version: "21"
+          java-version: ${{ env.JAVA_VERSION }}
           distribution: "temurin"
+
+      - name: Compile check
+        run: find src -name "*.java" | xargs javac -d out
+
+  build-windows:
+    needs: compile-check
+    runs-on: windows-latest
+    if: startsWith(github.ref, 'refs/tags/')
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: "temurin"
+
+      - name: Check required assets
+        run: |
+          test -f assets/icon.ico || (echo "assets/icon.ico missing" && exit 1)
+          test -f assets/icon.png || (echo "assets/icon.png missing" && exit 1)
+        shell: bash
 
       - name: Install WiX Toolset 3
         run: |
@@ -39,9 +72,10 @@ jobs:
 
       - name: Download bore for Windows
         run: |
-          curl -L https://github.com/ekzhang/bore/releases/download/v0.5.0/bore-v0.5.0-x86_64-pc-windows-msvc.zip -o bore.zip
-          Expand-Archive bore.zip -DestinationPath .
-          Move-Item bore.exe out/
+          Invoke-WebRequest -Uri "https://github.com/ekzhang/bore/releases/download/v0.5.0/bore-v0.5.0-x86_64-pc-windows-msvc.zip" -OutFile "bore.zip"
+          Expand-Archive bore.zip -DestinationPath . -Force
+          Move-Item -Path "bore.exe" -Destination "out/" -Force
+          Remove-Item bore.zip -Force
 
       - name: Create fat JAR
         run: |
@@ -78,16 +112,18 @@ jobs:
           path: installer/*.exe
 
   build-linux:
+    needs: compile-check
     runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up JDK 21
+      - name: Set up JDK
         uses: actions/setup-java@v4
         with:
-          java-version: "21"
+          java-version: ${{ env.JAVA_VERSION }}
           distribution: "temurin"
 
       - name: Install packaging dependencies
@@ -139,18 +175,107 @@ jobs:
           name: HelloBros-Linux
           path: installer/*.deb
 
-  create-release:
-    needs: [build-windows, build-linux]
-    runs-on: ubuntu-latest
-    # Skipped on workflow_dispatch (no tag ref); intentional for testing builds only
+  build-macos:
+    needs: compile-check
+    runs-on: macos-latest
     if: startsWith(github.ref, 'refs/tags/')
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: "temurin"
+
+      - name: Create output directory
+        run: mkdir -p out
+
+      - name: Compile Java sources
+        run: find src -name "*.java" | xargs javac -d out
+
+      - name: Download bore for macOS
+        run: |
+          curl -L https://github.com/ekzhang/bore/releases/download/v0.5.0/bore-v0.5.0-x86_64-apple-darwin.tar.gz | tar xz
+          chmod +x bore
+          mv bore out/
+
+      - name: Create fat JAR
+        run: |
+          echo "Main-Class: main.ChatApp" > manifest.txt
+          jar cfm HelloBros.jar manifest.txt -C out .
+
+      - name: Strip v prefix from version
+        id: version
+        run: |
+          VERSION="${{ github.ref_name }}"
+          VERSION="${VERSION#v}"
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Package as macOS DMG
+        run: |
+          jpackage \
+            --input . \
+            --name HelloBros \
+            --main-jar HelloBros.jar \
+            --main-class main.ChatApp \
+            --type dmg \
+            --app-version ${{ steps.version.outputs.VERSION }} \
+            --description "HelloBros Chat App" \
+            --icon assets/icon.icns \
+            --dest installer
+
+      - name: Upload DMG as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: HelloBros-macOS
+          path: installer/*.dmg
+
+  create-release:
+    needs: [build-windows, build-linux, build-macos]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          ref: main
+
       - name: Verify CHANGELOG exists
         run: test -f CHANGELOG.md || (echo "CHANGELOG.md not found" && exit 1)
+
+      - name: Strip v prefix from version
+        id: version
+        run: |
+          VERSION="${{ github.ref_name }}"
+          VERSION="${VERSION#v}"
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Extract release notes from CHANGELOG
+        run: |
+          VERSION="${{ steps.version.outputs.VERSION }}"
+          awk "/## \[$VERSION\]/{found=1} found{print}" CHANGELOG.md | awk "BEGIN{skip=0} /## \[/{skip++} skip>1{exit} {print}" > release_notes.txt
+          [ -s release_notes.txt ] || (echo "No entry for $VERSION in CHANGELOG.md" && exit 1)
+
+      - name: Update README download links
+        run: |
+          VERSION="${{ steps.version.outputs.VERSION }}"
+          REPO="https://github.com/Hrxander-T/HelloBros/releases/download/v${VERSION}"
+          sed -i "s#| Windows .*#| Windows  | [HelloBros-${VERSION}.exe](${REPO}/HelloBros-${VERSION}.exe) |#" README.md
+          sed -i "s#| Linux .*#| Linux    | [hellobros_${VERSION}_amd64.deb](${REPO}/hellobros_${VERSION}_amd64.deb) |#" README.md
+          sed -i "s#| macOS .*#| macOS    | [HelloBros-${VERSION}.dmg](${REPO}/HelloBros-${VERSION}.dmg) |#" README.md
+
+      - name: Commit updated README
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add README.md
+          git diff --cached --quiet || git commit -m "chore: update README download links for v${{ steps.version.outputs.VERSION }}"
+          git push origin HEAD:main
 
       - name: Download Windows artifact
         uses: actions/download-artifact@v4
@@ -164,8 +289,11 @@ jobs:
           name: HelloBros-Linux
           path: artifacts
 
-      - name: List artifacts
-        run: ls -la artifacts/
+      - name: Download macOS artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: HelloBros-macOS
+          path: artifacts
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -173,4 +301,6 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           files: artifacts/*
           name: HelloBros ${{ github.ref_name }}
-          body_path: CHANGELOG.md
+          body_path: release_notes.txt
+          make_latest: true
+          generate_release_notes: false

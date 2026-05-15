@@ -1,7 +1,7 @@
 package ui;
 
 import game.TicTacToe;
-import game.TicTacToe.Player;
+import game.TicTacToe.Mark;
 import java.awt.*;
 import javax.swing.*;
 import network.NetworkManager;
@@ -15,7 +15,7 @@ public class GameScreen implements Screen {
     private JLabel connectionLabel;
     private TicTacToe game;
 
-    private Player mySymbol; // X or O
+    private Mark mySymbol; // X or O
     private boolean myTurn;
     private String name;
     private boolean isHost;
@@ -42,7 +42,7 @@ public class GameScreen implements Screen {
         this.lobbyArgs = a; // store it
         this.name = a.name;
         this.isHost = a.isHost;
-        this.mySymbol = isHost ? Player.X : Player.O;
+        this.mySymbol = isHost ? Mark.X : Mark.O;
         this.myTurn = isHost;
         this.game = new TicTacToe();
         buildPanel();
@@ -145,20 +145,20 @@ public class GameScreen implements Screen {
 
         if (!myTurn || game.isGameOver())
             return;
-        if (game.getCell(row, col) != Player.NONE)
+        if (game.getCell(row, col) != Mark.NONE)
             return;
         applyMove(row, col, mySymbol);
         NetworkManager.sendMove(row, col);
     }
 
     // apply a move — called locally and from network
-    public void applyMove(int row, int col, Player symbol) {
+    public void applyMove(int row, int col, Mark symbol) {
         game.makeMove(row, col);
         updateCell(row, col, symbol);
 
-        Player winner = game.checkWinner();
+        Mark winner = game.checkWinner();
         if (winner != null) {
-            if (winner == Player.NONE) {
+            if (winner == Mark.NONE) {
                 statusLabel.setText("Draw!");
             } else {
                 statusLabel.setText(winner == mySymbol ? "You win! 🎉" : "You lose!");
@@ -172,17 +172,17 @@ public class GameScreen implements Screen {
 
     // called when opponent sends a move
     public void receiveMove(int row, int col) {
-        Player opponentSymbol = (mySymbol == Player.X) ? Player.O : Player.X;
+        Mark opponentSymbol = (mySymbol == Mark.X) ? Mark.O : Mark.X;
         applyMove(row, col, opponentSymbol);
         myTurn = true;
         updateStatus();
     }
 
-    private void updateCell(int row, int col, Player symbol) {
+    private void updateCell(int row, int col, Mark symbol) {
         SwingUtilities.invokeLater(() -> {
             JButton cell = cells[row][col];
-            cell.setText(symbol == Player.X ? "X" : "O");
-            cell.setForeground(symbol == Player.X ? Color.BLUE : Color.RED);
+            cell.setText(symbol == Mark.X ? "X" : "O");
+            cell.setForeground(symbol == Mark.X ? Color.BLUE : Color.RED);
             cell.setEnabled(false);
         });
     }
@@ -193,7 +193,7 @@ public class GameScreen implements Screen {
                 return;
             if (myTurn) {
                 statusLabel.setText(name + "'s turn");
-                statusLabel.setForeground(mySymbol == Player.X ? new Color(0, 102, 204) : new Color(204, 51, 0));
+                statusLabel.setForeground(mySymbol == Mark.X ? new Color(0, 102, 204) : new Color(204, 51, 0));
             } else {
                 statusLabel.setText("Opponent's turn...");
                 statusLabel.setForeground(new Color(100, 100, 100));

@@ -17,7 +17,8 @@ public interface MessageListener {
     // Called when a new message arrives from the network
     // msg - the message text to display
     void onMessage(String msg);
-
+    void onFile(String sender, String fileName, byte[] data);
+    void onFileSendProgress(int percent, byte[] completedData);
     // Called when the connection to the server is lost
     // Used to show "Disconnected" message in the UI
     void onDisconnected();

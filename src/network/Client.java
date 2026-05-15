@@ -18,46 +18,39 @@ public class Client {
         this.listener = listener;
     }
 
+    // ==================== Connect ====================
+
     public void start() {
-        Thread clientThread = new Thread(() -> {
-            try {
-                try (Socket socket = new Socket(host, port)) {
-                    Thread.sleep(500);
-                    dos = new DataOutputStream(socket.getOutputStream());
-                    DataInputStream dis = new DataInputStream(socket.getInputStream());
+        Thread t = new Thread(() -> {
+            try (Socket socket = new Socket(host, port)) {
+                Thread.sleep(500);
+                dos = new DataOutputStream(socket.getOutputStream());
+                DataInputStream dis = new DataInputStream(socket.getInputStream());
 
-                    listener.onMessage("-- Connected to " + host + ":" + port + " --");
+                listener.onMessage("-- Connected to " + host + ":" + port + " --");
 
-                    while (true) {
-                        String type = dis.readUTF();
-                        switch (type) {
-                            case Protocol.MSG -> listener.onMessage(dis.readUTF());
-                            case Protocol.PING -> dis.readUTF();
-                            case Protocol.GAME -> {
-                                String moveData = dis.readUTF();
-                                listener.onGameMove(moveData);
-                            }
-                            case Protocol.REACTION -> {
-                                String payload = dis.readUTF(); // "msgId:emoji:sender"
-                                String[] parts = payload.split(":", 3);
-                                listener.onReaction(parts[0], parts[1], parts[2]);
-                            }
-                            default -> {
-                            }
-                        }
+                while (true) {
+                    String type = dis.readUTF();
+                    switch (type) {
+                        case Protocol.PING     -> dis.readUTF();
+                        case Protocol.MSG      -> listener.onMessage(dis.readUTF());
+                        case Protocol.REACTION -> handleReaction(dis);
+                        case Protocol.GAME     -> listener.onGameMove(dis.readUTF());
+                        case Protocol.FILE     -> handleFile(dis);
+                        default                -> {}
                     }
                 }
-
             } catch (IOException e) {
                 listener.onDisconnected();
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
         });
-
-        clientThread.setDaemon(true);
-        clientThread.start();
+        t.setDaemon(true);
+        t.start();
     }
+
+    // ==================== Send ====================
 
     public void send(String msg) {
         try {
@@ -68,40 +61,48 @@ public class Client {
         }
     }
 
-    public void sendFile(File file) {
-        if (dos == null)
-            return;
-        try {
-            byte[] fileData;
-            try (FileInputStream fis = new FileInputStream(file)) {
-                fileData = fis.readAllBytes();
-            }
-            dos.writeUTF(Protocol.FILE);
-            dos.writeUTF(name);
-            dos.writeUTF(file.getName());
-            dos.writeLong(fileData.length);
-            dos.write(fileData);
-            dos.flush();
-            listener.onMessage("File sent: " + file.getName());
-        } catch (IOException e) {
-            listener.onMessage("File send error: " + e.getMessage());
-        }
-    }
-
     public void sendReaction(String messageId, String emoji) {
         try {
             dos.writeUTF(Protocol.REACTION);
-            dos.writeUTF(messageId);
-            dos.writeUTF(emoji);
-            dos.writeUTF(name);
+            dos.writeUTF(messageId + ":" + emoji + ":" + name);
         } catch (IOException e) {
             listener.onMessage("Reaction error: " + e.getMessage());
         }
     }
 
+    public void sendFile(File file) {
+        new Thread(() -> {
+            if (dos == null) return;
+            try (FileInputStream fis = new FileInputStream(file)) {
+                long total = file.length();
+                long sent = 0;
+
+                dos.writeUTF(Protocol.FILE);
+                dos.writeUTF(name);
+                dos.writeUTF(file.getName());
+                dos.writeLong(total);
+
+                byte[] buffer = new byte[8192];
+                int bytesRead;
+                ByteArrayOutputStream baos = new ByteArrayOutputStream();
+
+                while ((bytesRead = fis.read(buffer)) != -1) {
+                    dos.write(buffer, 0, bytesRead);
+                    baos.write(buffer, 0, bytesRead);
+                    sent += bytesRead;
+                    listener.onFileSendProgress((int) (sent * 100 / total), null);
+                }
+                dos.flush();
+                listener.onFileSendProgress(100, baos.toByteArray());
+
+            } catch (IOException e) {
+                listener.onMessage("File send error: " + e.getMessage());
+            }
+        }).start();
+    }
+
     public void sendMove(int row, int col) {
-        if (dos == null)
-            return;
+        if (dos == null) return;
         try {
             dos.writeUTF(Protocol.GAME);
             dos.writeUTF(row + "," + col);
@@ -111,8 +112,7 @@ public class Client {
     }
 
     public void sendGameSignal(String signal) {
-        if (dos == null)
-            return;
+        if (dos == null) return;
         try {
             dos.writeUTF(Protocol.GAME);
             dos.writeUTF(signal);
@@ -121,4 +121,31 @@ public class Client {
         }
     }
 
+    // ==================== Private Handlers ====================
+
+    private void handleReaction(DataInputStream dis) throws IOException {
+        String payload = dis.readUTF(); // "msgId:emoji:sender"
+        String[] parts = payload.split(":", 3);
+        listener.onReaction(parts[0], parts[1], parts[2]);
+    }
+
+    private void handleFile(DataInputStream dis) throws IOException {
+        String sender   = dis.readUTF();
+        String fileName = dis.readUTF();
+        long fileSize   = dis.readLong();
+
+        byte[] buffer = new byte[8192];
+        long remaining = fileSize;
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+
+        while (remaining > 0) {
+            int toRead   = (int) Math.min(buffer.length, remaining);
+            int bytesRead = dis.read(buffer, 0, toRead);
+            if (bytesRead == -1) break;
+            remaining -= bytesRead;
+            baos.write(buffer, 0, bytesRead);
+        }
+
+        listener.onFile(sender, fileName, baos.toByteArray());
+    }
 }

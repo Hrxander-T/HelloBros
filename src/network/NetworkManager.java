@@ -1,5 +1,6 @@
 package network;
 
+import java.io.IOException;
 import javax.swing.SwingUtilities;
 import model.LobbyArgs;
 import tunnel.TunnelFactory;
@@ -10,35 +11,33 @@ import ui.LobbyScreen;
 
 public class NetworkManager {
 
-    // ==================== Static Fields ====================
+    // ==================== Fields ====================
 
-    // Core networking
     private static Server server;
     private static Client client;
     private static TunnelProvider tunnel;
+    private static MessageListener listener;
+
     private static final SignalingClient signaling = new SignalingClient();
 
-    // Connection state
-    private static String tunnelAddress = null;
-    private static String lastRoomID; // room ID used to join
-    private static String lastName; // name used to connect
+    private static String lastRoomID;
+    private static String lastName;
     private static boolean started = false;
     private static boolean isHost = false;
 
-    // UI references
     private static ChatScreen chat;
     private static GameScreen game;
     private static LobbyScreen lobby;
 
-    // ==================== Static Methods ====================
-
-    // --- Public Methods ---
+    // ==================== Init ====================
 
     public static void init(ChatScreen c, GameScreen g, LobbyScreen l) {
         chat = c;
         game = g;
         lobby = l;
     }
+
+    // ==================== Connect ====================
 
     public static void connect(LobbyArgs a) {
         if (started)
@@ -48,7 +47,7 @@ public class NetworkManager {
         lastName = a.name;
         lastRoomID = a.address;
 
-        MessageListener listener = buildListener();
+        listener = buildListener();
 
         if (isHost) {
             server = new Server(a.port, listener);
@@ -57,23 +56,22 @@ public class NetworkManager {
                 lobby.setStatus("Starting tunnel...");
             startTunnel(a.port);
         } else {
-            Thread t = new Thread(() -> {
+            new Thread(() -> {
                 try {
-                    int port = signaling.joinRoom(a.address); // a.address = roomID
+                    int port = signaling.joinRoom(a.address);
                     client = new Client("bore.pub", port, a.name, listener);
                     client.start();
                 } catch (Exception e) {
-                    // notify UI
                     SwingUtilities.invokeLater(() -> {
                         if (chat != null)
                             chat.appendMessage("-- Room not found: " + a.address + " --");
                     });
                 }
-            });
-            t.setDaemon(true);
-            t.start();
+            }).start();
         }
     }
+
+    // ==================== Send ====================
 
     public static void sendMessage(String name, String id, String msg) {
         String formatted = id + "|[" + name + "]: " + msg;
@@ -86,19 +84,49 @@ public class NetworkManager {
     }
 
     public static void sendReaction(String messageId, String emoji) {
+        String payload = messageId + ":" + emoji + ":" + lastName;
         if (isHost) {
-            Server.broadcast(Protocol.REACTION, messageId + ":" + emoji + ":" + lastName, null);
+            Server.broadcast(Protocol.REACTION, payload, null);
         } else if (client != null) {
             client.sendReaction(messageId, emoji);
         }
-        // show locally for sender too
         if (chat != null)
             chat.appendReaction(messageId, emoji, lastName);
     }
 
     public static void sendFile(java.io.File file) {
-        if (client != null)
-            client.sendFile(file);
+        new Thread(() -> {
+            if (isHost) {
+                try (java.io.FileInputStream fis = new java.io.FileInputStream(file)) {
+                    long total = file.length();
+                    long sent = 0;
+
+                    Server.broadcastFileHeader(lastName, file.getName(), total);
+
+                    byte[] buffer = new byte[8192];
+                    int bytesRead;
+                    java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
+
+                    while ((bytesRead = fis.read(buffer)) != -1) {
+                        Server.broadcastFileChunk(buffer, bytesRead);
+                        baos.write(buffer, 0, bytesRead);
+                        sent += bytesRead;
+                        listener.onFileSendProgress((int) (sent * 100 / total), null);
+                    }
+
+                    Server.broadcastFileFlush();
+                    listener.onFileSendProgress(100, baos.toByteArray());
+
+                } catch (IOException e) {
+                    SwingUtilities.invokeLater(() -> {
+                        if (chat != null)
+                            chat.appendMessage("File send error: " + e.getMessage());
+                    });
+                }
+            } else if (client != null) {
+                client.sendFile(file);
+            }
+        }).start();
     }
 
     public static void sendMove(int row, int col) {
@@ -120,11 +148,12 @@ public class NetworkManager {
 
     public static void sendGameAccept() {
         boolean hostGoesFirst = Math.random() < 0.5;
+        String payload = Protocol.GAME_ACCEPT + ":" + hostGoesFirst;
         if (isHost) {
-            Server.broadcast(Protocol.GAME, Protocol.GAME_ACCEPT + ":" + hostGoesFirst, null);
+            Server.broadcast(Protocol.GAME, payload, null);
             SwingUtilities.invokeLater(() -> game.receiveGameAccept(hostGoesFirst));
         } else if (client != null) {
-            client.sendGameSignal(Protocol.GAME_ACCEPT + ":" + hostGoesFirst);
+            client.sendGameSignal(payload);
             SwingUtilities.invokeLater(() -> game.receiveGameAccept(hostGoesFirst));
         }
     }
@@ -136,6 +165,8 @@ public class NetworkManager {
             client.sendGameSignal(Protocol.GAME_DECLINE);
         }
     }
+
+    // ==================== State ====================
 
     public static void reset() {
         if (tunnel != null) {
@@ -176,22 +207,25 @@ public class NetworkManager {
         return signaling.getRoomID();
     }
 
-    // --- Private Methods ---
+    private static String tunnelAddress = null;
+
+    // ==================== Listener ====================
 
     private static MessageListener buildListener() {
         return new MessageListener() {
+
             @Override
             public void onMessage(String msg) {
-                if (chat != null)
-                    chat.appendMessage(msg);
-                if (msg.contains("New client connected")) {
-                    if (game != null)
-                        game.setConnectionStatus("Opponent connected");
-                }
-                if (msg.contains("client disconnected")) {
-                    if (game != null)
-                        game.setConnectionStatus("Opponent disconnected");
-                }
+                SwingUtilities.invokeLater(() -> {
+                    if (chat != null)
+                        chat.appendMessage(msg);
+                    if (game != null) {
+                        if (msg.contains("New client connected"))
+                            game.setConnectionStatus("Opponent connected");
+                        if (msg.contains("client disconnected"))
+                            game.setConnectionStatus("Opponent disconnected");
+                    }
+                });
             }
 
             @Override
@@ -203,21 +237,37 @@ public class NetworkManager {
             }
 
             @Override
+            public void onFile(String sender, String fileName, byte[] data) {
+                SwingUtilities.invokeLater(() -> {
+                    if (chat != null)
+                        chat.appendFile(sender, fileName, data);
+                });
+            }
+
+            @Override
+            public void onFileSendProgress(int percent, byte[] completedData) {
+                SwingUtilities.invokeLater(() -> {
+                    if (chat != null)
+                        chat.updateSendProgress(percent, completedData);
+                });
+            }
+
+            @Override
             public void onDisconnected() {
-                if (chat != null) {
-                    chat.appendMessage("-- Disconnected --");
-                    chat.setConnected(false);
-                }
-                if (!isHost) {
+                SwingUtilities.invokeLater(() -> {
+                    if (chat != null) {
+                        chat.appendMessage("-- Disconnected --");
+                        chat.setConnected(false);
+                    }
+                });
+                if (!isHost)
                     startReconnectPoller();
-                }
             }
 
             @Override
             public void onGameMove(String moveData) {
                 if (game == null)
                     return;
-
                 SwingUtilities.invokeLater(() -> {
                     if (moveData.startsWith(Protocol.GAME_ACCEPT + ":")) {
                         boolean hostGoesFirst = Boolean.parseBoolean(moveData.split(":")[1]);
@@ -229,7 +279,8 @@ public class NetworkManager {
                             case Protocol.GAME_RESET -> game.receiveReset();
                             default -> {
                                 String[] parts = moveData.split(",");
-                                game.receiveMove(Integer.parseInt(parts[0]),
+                                game.receiveMove(
+                                        Integer.parseInt(parts[0]),
                                         Integer.parseInt(parts[1]));
                             }
                         }
@@ -239,82 +290,78 @@ public class NetworkManager {
         };
     }
 
+    // ==================== Private Helpers ====================
+
     private static void startTunnel(int port) {
         tunnel = TunnelFactory.create(TunnelFactory.Provider.BORE);
         tunnel.start(port, new TunnelProvider.TunnelListener() {
             @Override
             public void onReady(String address) {
-
                 int borePort = Integer.parseInt(address.trim());
-
-                // register or update room on signaling server
-                Thread t = new Thread(() -> {
+                new Thread(() -> {
                     try {
                         if (signaling.getRoomID() == null) {
                             String roomID = signaling.createRoom(borePort);
-                            if (lobby != null)
-                                lobby.showRoomID(roomID);
-                            if (chat != null)
-                                chat.showTunnelInfo(roomID);
+                            SwingUtilities.invokeLater(() -> {
+                                if (lobby != null)
+                                    lobby.showRoomID(roomID);
+                                if (chat != null)
+                                    chat.showTunnelInfo(roomID);
+                            });
                         } else {
                             signaling.updatePort(borePort);
-                            if (lobby != null)
-                                lobby.showRoomID(signaling.getRoomID());
+                            SwingUtilities.invokeLater(() -> {
+                                if (lobby != null)
+                                    lobby.showRoomID(signaling.getRoomID());
+                            });
                         }
                     } catch (Exception e) {
-                        if (chat != null)
-                            chat.appendMessage("-- Signaling error: " + e.getMessage() + " --");
+                        SwingUtilities.invokeLater(() -> {
+                            if (chat != null)
+                                chat.appendMessage("-- Signaling error: " + e.getMessage() + " --");
+                        });
                     }
-                });
-                t.setDaemon(true);
-                t.start();
+                }).start();
             }
 
             @Override
             public void onError(String error) {
-                if (chat != null)
-                    chat.appendMessage("-- Tunnel error: " + error + " --");
-
+                SwingUtilities.invokeLater(() -> {
+                    if (chat != null)
+                        chat.appendMessage("-- Tunnel error: " + error + " --");
+                });
             }
         });
     }
 
+    @SuppressWarnings("BusyWait")
     private static void startReconnectPoller() {
-        @SuppressWarnings("BusyWait")
-        Thread poller = new Thread(() -> {
-            String roomID = signaling.getRoomID() != null
-                    ? signaling.getRoomID()
-                    : lastRoomID; // store roomID used to join
-
+        new Thread(() -> {
+            String roomID = signaling.getRoomID() != null ? signaling.getRoomID() : lastRoomID;
             int attempts = 0;
+
             while (attempts < 10) {
                 try {
-                    Thread.sleep(3000); // wait 3 seconds between attempts
+                    Thread.sleep(3000);
                     int newPort = signaling.joinRoom(roomID);
-                    System.out.println("Reconnecting to port: " + newPort);
-
                     client = new Client("bore.pub", newPort, lastName, buildListener());
                     client.start();
-
                     SwingUtilities.invokeLater(() -> {
                         if (chat != null) {
                             chat.appendMessage("-- Reconnected --");
                             chat.setConnected(true);
                         }
                     });
-                    return; // success
-
+                    return;
                 } catch (Exception e) {
                     attempts++;
                     System.out.println("Reconnect attempt " + attempts + " failed");
                 }
             }
+
             SwingUtilities.invokeLater(() -> {
-                if (chat != null)
-                    chat.appendMessage("-- Could not reconnect --");
+                if (chat != null) chat.appendMessage("-- Could not reconnect --");
             });
-        });
-        poller.setDaemon(true);
-        poller.start();
+        }).start();
     }
 }

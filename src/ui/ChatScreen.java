@@ -6,7 +6,6 @@ import java.awt.event.*;
 import java.io.File;
 import java.util.LinkedHashMap;
 import java.util.Map;
-
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import model.ChatArgs;
@@ -24,6 +23,7 @@ public class ChatScreen implements Screen {
     private JButton reconnectBtn;
     private JPanel tunnelPanel;
     private JLabel tunnelLabel;
+    private FilePanel outgoingFilePanel;
 
     // Add these:
     private JPanel messageList;
@@ -149,7 +149,8 @@ public class ChatScreen implements Screen {
             JFileChooser chooser = new JFileChooser();
             if (chooser.showOpenDialog(panel) == JFileChooser.APPROVE_OPTION) {
                 File file = chooser.getSelectedFile();
-                appendMessage("-- Sending: " + file.getName() + " --");
+
+                appendFile(name, file.getName(), null);
                 NetworkManager.sendFile(file);
             }
         });
@@ -186,6 +187,31 @@ public class ChatScreen implements Screen {
             scrollPane.getVerticalScrollBar().setValue(
                     scrollPane.getVerticalScrollBar().getMaximum());
         });
+    }
+
+    public void appendFile(String sender, String fileName, byte[] data) {
+        FilePanel fp = new FilePanel(sender, fileName, data);
+        SwingUtilities.invokeLater(() -> {
+            messageList.add(fp);
+            messageList.revalidate();
+            scrollPane.getVerticalScrollBar().setValue(
+                    scrollPane.getVerticalScrollBar().getMaximum());
+            if (data != null)
+                fp.setDone(data); // receiver
+            else
+                outgoingFilePanel = fp; // sender, progress tracked separately
+        });
+    }
+
+    public void updateSendProgress(int percent, byte[] completedData) {
+        if (outgoingFilePanel == null)
+            return;
+        if (percent < 100) {
+            outgoingFilePanel.setProgress(percent);
+        } else {
+            outgoingFilePanel.setDone(completedData);
+            outgoingFilePanel = null;
+        }
     }
 
     public void appendReaction(String msgId, String emoji, String sender) {

@@ -3,7 +3,6 @@ package network;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.net.ServerSocket;
@@ -133,17 +132,25 @@ public class Server {
                         String fileName = dis.readUTF();
                         long fileSize = dis.readLong();
 
-                        byte[] fileData = new byte[(int) fileSize];
-                        dis.readFully(fileData);
+                        broadcastFileHeader(sender, fileName, fileSize);
 
-                        try (FileOutputStream fos = new FileOutputStream(FILES_DIR + fileName)) {
-                            fos.write(fileData);
+                        byte[] buffer = new byte[8192];
+                        long remaining = fileSize;
+                        java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
+
+                        while (remaining > 0) {
+                            int toRead = (int) Math.min(buffer.length, remaining);
+                            int bytesRead = dis.read(buffer, 0, toRead);
+                            if (bytesRead == -1)
+                                break;
+                            remaining -= bytesRead;
+                            baos.write(buffer, 0, bytesRead);
+                            broadcastFileChunk(buffer, bytesRead);
                         }
 
-                        String notice = "[" + sender + "] sent a file: " + fileName;
-                        listener.onMessage(notice);
-                        saveToFile(notice);
-                        broadcast(Protocol.MSG, notice, dos);
+                        broadcastFileFlush();
+                        listener.onFile(sender, fileName, baos.toByteArray());
+                        saveToFile("[" + sender + "] sent a file: " + fileName);
                     }
                     case Protocol.GAME -> {
                         String moveData = dis.readUTF();
@@ -177,6 +184,64 @@ public class Server {
                     } catch (IOException e) {
                         it.remove();
                     }
+                }
+            }
+        }
+    }
+
+    public static void broadcastFile(String sender, String fileName, byte[] fileData, DataOutputStream exclude) {
+        synchronized (clients) {
+            for (DataOutputStream out : clients) {
+                if (out != exclude) {
+                    try {
+                        out.writeUTF(Protocol.FILE);
+                        out.writeUTF(sender);
+                        out.writeUTF(fileName);
+                        out.writeLong(fileData.length);
+                        out.write(fileData);
+                        out.flush();
+                    } catch (IOException e) {
+                        clients.remove(out);
+                    }
+                }
+            }
+        }
+    }
+
+    public static void broadcastFileHeader(String sender, String fileName, long fileSize) {
+        synchronized (clients) {
+            for (DataOutputStream out : clients) {
+                try {
+                    out.writeUTF(Protocol.FILE);
+                    out.writeUTF(sender);
+                    out.writeUTF(fileName);
+                    out.writeLong(fileSize);
+                } catch (IOException e) {
+                    clients.remove(out);
+                }
+            }
+        }
+    }
+
+    public static void broadcastFileChunk(byte[] buffer, int length) {
+        synchronized (clients) {
+            for (DataOutputStream out : clients) {
+                try {
+                    out.write(buffer, 0, length);
+                } catch (IOException e) {
+                    clients.remove(out);
+                }
+            }
+        }
+    }
+
+    public static void broadcastFileFlush() {
+        synchronized (clients) {
+            for (DataOutputStream out : clients) {
+                try {
+                    out.flush();
+                } catch (IOException e) {
+                    clients.remove(out);
                 }
             }
         }

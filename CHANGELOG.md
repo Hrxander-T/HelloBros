@@ -5,8 +5,21 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 ### Added
-- Java Swing don't have good emoji support. Swing will be relplace.
+- Java Swing don't have good emoji support. Swing will be relplaced with Native.
 - Mobile Support
+- Define Channel Protocols to set Roles
+- Sending files interrupts messagees (needs Mulit Connection server) [High Difficulty]
+- Peer to Peer Connection () [Higher Difficulty]
+
+---
+
+## [1.2.2] - 2026-05-15
+
+### Added
+- File sending is now workable
+- Clients and host can save the received files in their desired folder
+- The files sending progress can be seen 
+
 
 ---
 
@@ -16,7 +29,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Right-click on message → emoji picker
 - Count displays beside the message (👍 2)
 - Message IDs synced across clients so reactions match correctly
-- ### Changed
+### Changed
 - Chat Screeen UI updated to support emoji
 
 ---

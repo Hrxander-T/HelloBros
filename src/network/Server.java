@@ -25,22 +25,30 @@ import java.util.List;
  */
 public class Server {
 
+    // ==================== Static Fields ====================
+
+    // Paths
     static final String LOG_FILE = "chatlog.txt";
     static final String FILES_DIR = "received_files/";
 
     // Thread-safe list of all connected client output streams
     static final List<DataOutputStream> clients = Collections.synchronizedList(new ArrayList<>());
 
+    // ==================== Instance Fields ====================
+
     private final int port;
     private final MessageListener listener;
     private ServerSocket ss; // stored so stop() can close it
+
+    // ==================== Constructor ====================
 
     public Server(int port, MessageListener listener) {
         this.port = port;
         this.listener = listener;
     }
 
-    // ── Start ──────────────────────────────
+    // ==================== Lifecycle ====================
+
     public void start() {
         new File(FILES_DIR).mkdirs();
 
@@ -74,7 +82,6 @@ public class Server {
         serverThread.start();
     }
 
-    // ── Stop ───────────────────────────────
     public void stop() {
         try {
             clients.clear();
@@ -85,24 +92,8 @@ public class Server {
         }
     }
 
-    // ── Keep-alive ─────────────────────────
-    private void startKeepAlive() {
-        @SuppressWarnings("BusyWait")
-        Thread keepAlive = new Thread(() -> {
-            while (true) {
-                try {
-                    Thread.sleep(30000);
-                    broadcast(Protocol.PING, "", null);
-                } catch (InterruptedException e) {
-                    break;
-                }
-            }
-        });
-        keepAlive.setDaemon(true);
-        keepAlive.start();
-    }
+    // ==================== Client Handling ====================
 
-    // ── Client handler ─────────────────────
     void handleClient(Socket socket, DataOutputStream dos) {
         try (socket) {
             DataInputStream dis = new DataInputStream(socket.getInputStream());
@@ -168,7 +159,8 @@ public class Server {
         }
     }
 
-    // ── Broadcast ──────────────────────────
+    // ==================== Broadcast ====================
+
     // Sends to all clients except sender. Pass null to send to everyone.
     public static void broadcast(String type, String msg, DataOutputStream sender) {
         System.out.println("Broadcasting: " + type + " msg=" + msg + " clients=" + clients.size());
@@ -247,7 +239,24 @@ public class Server {
         }
     }
 
-    // ── Save to file ───────────────────────
+    // ==================== Private Helpers ====================
+
+    @SuppressWarnings("BusyWait")
+    private void startKeepAlive() {
+        Thread keepAlive = new Thread(() -> {
+            while (true) {
+                try {
+                    Thread.sleep(30000);
+                    broadcast(Protocol.PING, "", null);
+                } catch (InterruptedException e) {
+                    break;
+                }
+            }
+        });
+        keepAlive.setDaemon(true);
+        keepAlive.start();
+    }
+
     public static void saveToFile(String msg) {
         try (FileWriter fw = new FileWriter(LOG_FILE, true)) {
             String timestamp = LocalDateTime.now()

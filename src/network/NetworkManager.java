@@ -11,25 +11,30 @@ import ui.LobbyScreen;
 
 public class NetworkManager {
 
-    // ==================== Fields ====================
+    // ==================== Static Fields ====================
 
+    // Networking
     private static Server server;
     private static Client client;
     private static TunnelProvider tunnel;
     private static MessageListener listener;
-
     private static final SignalingClient signaling = new SignalingClient();
 
+    // State
+    private static String tunnelAddress = null;
     private static String lastRoomID;
     private static String lastName;
     private static boolean started = false;
     private static boolean isHost = false;
 
+    // UI References
     private static ChatScreen chat;
     private static GameScreen game;
     private static LobbyScreen lobby;
 
-    // ==================== Init ====================
+    // ==================== Public Static Methods ====================
+
+    // --- Initialization ---
 
     public static void init(ChatScreen c, GameScreen g, LobbyScreen l) {
         chat = c;
@@ -37,7 +42,7 @@ public class NetworkManager {
         lobby = l;
     }
 
-    // ==================== Connect ====================
+    // --- Connection ---
 
     public static void connect(LobbyArgs a) {
         if (started)
@@ -71,7 +76,7 @@ public class NetworkManager {
         }
     }
 
-    // ==================== Send ====================
+    // --- Sending ---
 
     public static void sendMessage(String name, String id, String msg) {
         String formatted = id + "|[" + name + "]: " + msg;
@@ -166,7 +171,7 @@ public class NetworkManager {
         }
     }
 
-    // ==================== State ====================
+    // --- State & Getters ---
 
     public static void reset() {
         if (tunnel != null) {
@@ -207,9 +212,7 @@ public class NetworkManager {
         return signaling.getRoomID();
     }
 
-    private static String tunnelAddress = null;
-
-    // ==================== Listener ====================
+    // ==================== Private Static Methods ====================
 
     private static MessageListener buildListener() {
         return new MessageListener() {
@@ -289,8 +292,6 @@ public class NetworkManager {
             }
         };
     }
-
-    // ==================== Private Helpers ====================
 
     private static void startTunnel(int port) {
         tunnel = TunnelFactory.create(TunnelFactory.Provider.BORE);

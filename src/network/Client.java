@@ -5,11 +5,15 @@ import java.net.*;
 
 public class Client {
 
+    // ==================== Instance Fields ====================
+
     private final String host;
     private final int port;
     private final String name;
     private final MessageListener listener;
     private DataOutputStream dos;
+
+    // ==================== Constructor ====================
 
     public Client(String host, int port, String name, MessageListener listener) {
         this.host = host;
@@ -18,7 +22,7 @@ public class Client {
         this.listener = listener;
     }
 
-    // ==================== Connect ====================
+    // ==================== Lifecycle ====================
 
     public void start() {
         Thread t = new Thread(() -> {
@@ -50,7 +54,7 @@ public class Client {
         t.start();
     }
 
-    // ==================== Send ====================
+    // ==================== Send Methods ====================
 
     public void send(String msg) {
         try {
